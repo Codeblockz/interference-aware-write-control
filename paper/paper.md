@@ -89,10 +89,11 @@ vocabulary is split into key tokens and value tokens. Loss and metrics use only 
 answer positions per sequence. The generator is adapted from Zoology's `multiquery_ar`
 and `forgetting_mqar` (Apache-2.0) with the distractor and delay extensions added.
 
-Pilot setting: vocabulary 8192, sequence length 512, $N = 64$, $U = 16$, $D = 16$,
-$\delta = 0$, so 96 associations compete for 32 slots. Splits: 100,000 train, 5,000
-validation, 10,000 test, generated from distinct seeds with exact-duplicate sequences
-removed from validation and test.
+Pilot setting: vocabulary 2048, sequence length 128, $N = 16$, $U = 4$, $D = 4$,
+$\delta = 0$, so 24 associations compete for $S = 16$ slots. This is smaller than the
+proposal's 64-association, 32-slot target; Section 4.2 reports what happened at the target
+and why the pilot moved. Splits: 100,000 train, 5,000 validation, 10,000 test, generated
+from distinct seeds with exact-duplicate sequences removed from validation and test.
 
 ## 2.2 Architecture
 
@@ -280,14 +281,41 @@ on validation recall at $N = 64$, $S = 32$ and then frozen.
 
 ## 4.2 Pilot run
 
-A single-seed pilot at $N = 64$, $S = 32$, length 512 with the controller and the recency
-baseline was run to validate the pipeline end to end and to measure cost. The numbers
-below are one seed and carry no statistical claim.
+*What the pilot is for.* A single seed, run to validate the pipeline end to end, to find
+the task size at which learning happens within a short budget, and to measure cost. The
+numbers below are one seed and carry no statistical claim about H1 or H2.
+
+*The proposal's setting did not learn.* The first pilot used the proposal's target:
+$N = 64$ with 16 updates and 16 distractors, 32 slots, length 512, vocabulary 8192, 8000
+steps at batch 64. The recency baseline finished at chance recall (0.01%, where chance is
+1/4096). The controller was at chance after 2600 steps with the loss still at the unigram
+floor, and was stopped. Diagnostics on smaller tasks then isolated three separate causes,
+fixed one at a time with the smallest change that tested each hypothesis:
+
+1. *Key alignment.* Projecting the stored key from the value token's position made the
+   memory path useless until the backbone learned to copy keys forward. The one-step shift
+   of Section 2.2 took the recency writer from 12% to 47% recall on an 8-pair task at equal
+   steps.
+2. *Diffuse gates.* The soft sigmoid-times-softmax gate smeared each write over all slots.
+   The straight-through gate of Section 2.3 took the controller from 11% to 81% on the same
+   task.
+3. *Content-blind write decision.* With only memory statistics as input, whether to write
+   could not depend on what the token was, so storing value tokens rather than filler was
+   learned only when the backbone happened to bootstrap it. Adding the 16-dimensional
+   content projection took a 16-pair task from 3% to 92% at 1400 steps, and a setting that
+   the content-blind controller never learned in 5000 steps started learning within 1400.
+
+After these fixes a one-factor scan from the smallest learnable task showed that vocabulary
+(512 to 8192) and length (64 to 128) did not block learning, but the ratio of associations
+to slots did, and the 64-association target was still at chance after 1400 steps, with one
+run producing a NaN loss. The pilot therefore moved to the 24-association, 16-slot setting
+of Section 2.1, which is the largest that learned within a 4000-step budget. Reaching the
+proposal's target is the first item of future work (Section 5.3).
 
 <!-- PILOT_TABLE -->
 
-Table 1. Pilot run, seed 0. Exact recall on 10,000 test sequences with 95% bootstrap CI;
-cost columns measured on one RTX 5090.
+Table 1. Pilot run, seed 0, 24 associations and 16 slots, trained at length 128. Exact
+recall on 10,000 test sequences with 95% bootstrap CI; cost columns measured on one RTX 5090.
 
 <!-- PILOT_FIGURE -->
 
@@ -319,7 +347,27 @@ explain its errors; and where a 32-slot budget fails for every writer. Because t
 synthetic, the findings bound what allocation can do on associative recall; they do not
 establish language-model gains.
 
-## 5.3 Risks identified by the pilot
+## 5.3 Risks identified by the pilot, and what changes before the final paper
+
+1. **Training budget at the proposal's scale.** The 64-association target did not leave
+   chance within the budgets tried. Recurrent models are known to need long training on
+   MQAR, and Zoology's reference runs use tens of thousands of steps. The full sweep will
+   use a longer schedule and a curriculum that starts from the learnable 16-pair setting
+   and grows $N$, which also matches how the proposal varies density.
+2. **Cold start of learned allocation.** With many more associations than slots, a random
+   initial policy thrashes the memory and no retrieval signal reaches the controller. The
+   content projection reduced this; the curriculum above is the remaining mitigation, and
+   a recency prior on the slot logits is a cheap alternative to test.
+3. **Write-loop cost.** The memory update is a sequential loop over tokens and takes 98% of
+   step time (0.65 s per step at batch 64, length 512). A compiled step body gave 2x; the
+   full sweep needs a vectorized or fused update, which is scheduled before the sweep.
+4. **Numerical stability.** One 64-association run reached a NaN loss at step 1400 under
+   bf16 autocast. The cause has not been isolated; the memory loop runs in fp32, so the
+   backbone or the head is the suspect. A gradient-norm and loss guard with fp32 fallback
+   will be added before the sweep.
+5. **Baselines not yet trained.** The residual-cache and position-activation writers are
+   implemented and unit-tested but have no training runs; their learned threshold and
+   schedule need validation-set tuning before they count as fair comparisons.
 
 <!-- PILOT_RISKS -->
 
