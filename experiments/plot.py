@@ -82,7 +82,7 @@ def main(root: Path, out: Path):
                      fontsize=7.5, color=TEXT, va="center")
     train_len = rows[0]["config"]["data"]["seq_len"]
     ax2.axvline(train_len, color=GRID, linewidth=1, linestyle="--")
-    ax2.annotate("train length", (train_len, 97), fontsize=7, color=MUTED, ha="center")
+    ax2.annotate("train length", (train_len, 94), xytext=(4, 0), textcoords="offset points", fontsize=7, color=MUTED, ha="left")
     ax2.set_xscale("log", base=2)
     ax2.set_xticks(Ls)
     ax2.set_xticklabels([str(L) for L in Ls])
