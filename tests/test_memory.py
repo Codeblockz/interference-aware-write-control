@@ -105,3 +105,17 @@ def test_controller_hard_gate_is_one_hot_times_scalar():
     g = c(m, torch.randn(2, 8), torch.randn(2, 8), 3, 10)
     assert ((g > 0).sum(-1) == 1).all()  # exactly one slot written
     assert torch.allclose(g.max(-1).values, g.sum(-1))
+
+
+def test_interference_features_have_bounded_gradients_near_zero_keys():
+    """Regression: 1/||x|| gradients from cosine/L2 features blew up training when slot
+    keys shrank toward zero. With the epsilon-regularized forms the gradient is bounded."""
+    m = _mem(B=1, S=3, d=8)
+    tiny = torch.full((1, 3, 8), 1e-6, requires_grad=True)
+    m.keys = tiny
+    m.values = tiny
+    m.filled = torch.ones(1, 3)
+    k = torch.randn(1, 8)
+    (m.similarity(k).sum() + m.value_disagreement(k).sum()).backward()
+    assert torch.isfinite(tiny.grad).all()
+    assert tiny.grad.abs().max() < 100.0

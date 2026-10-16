@@ -46,16 +46,20 @@ class SlotMemory:
         self.age = (self.age + 1) * (1 - gate)
         self.usage = self.usage + gate
 
+    EPS = 1e-2  # gradient of 1/||x|| is bounded by 1/EPS; slot keys can shrink toward 0
+
     def similarity(self, key: Tensor) -> Tensor:
-        """Cosine similarity of an incoming key to every slot key: (B, S)."""
-        k = torch.nn.functional.normalize(key, dim=-1).unsqueeze(1)
-        mk = torch.nn.functional.normalize(self.keys, dim=-1)
-        return (k * mk).sum(-1) * self.filled  # empty slots contribute 0
+        """Cosine similarity of an incoming key to every slot key: (B, S).
+        Epsilon-regularized so the backward pass stays bounded for near-zero slot keys."""
+        dot = torch.einsum("bd,bsd->bs", key, self.keys)
+        nk = (key.pow(2).sum(-1, keepdim=True) + self.EPS).sqrt()
+        nm = (self.keys.pow(2).sum(-1) + self.EPS).sqrt()
+        return dot / (nk * nm) * self.filled  # empty slots contribute 0
 
     def value_disagreement(self, value: Tensor) -> Tensor:
         """L2 distance between an incoming value and every slot value, scaled: (B, S)."""
         diff = self.values - value.unsqueeze(1)
-        return diff.norm(dim=-1) / (self.d**0.5)
+        return (diff.pow(2).sum(-1) + self.EPS).sqrt() / (self.d**0.5)
 
     @staticmethod
     def state_bytes(slots: int, dim: int, dtype_bytes: int = 4) -> int:
