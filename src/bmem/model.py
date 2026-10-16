@@ -28,6 +28,7 @@ class ModelConfig:
     mem_dim: int = 128
     writer: str = "controller"
     controller_hidden: int = 64
+    assoc_shift: int = 1  # key projected from h_{t-shift}: an association pairs each value with the preceding token
 
 
 class RecallModel(nn.Module):
@@ -50,7 +51,10 @@ class RecallModel(nn.Module):
     def forward(self, tokens: Tensor, return_gates: bool = False) -> tuple[Tensor, dict]:
         B, T = tokens.shape
         h = self.backbone(tokens)  # (B, T, d_model), parallel over T
-        q, k, v = self.to_q(h).float(), self.to_k(h).float(), self.to_v(h).float()
+        h_key = h if self.cfg.assoc_shift == 0 else torch.cat(
+            [h.new_zeros(B, self.cfg.assoc_shift, h.shape[-1]), h[:, : -self.cfg.assoc_shift]], dim=1
+        )
+        q, k, v = self.to_q(h).float(), self.to_k(h_key).float(), self.to_v(h).float()
         mem = SlotMemory(B, self.cfg.slots, self.cfg.mem_dim, tokens.device)
         reads, gates = [], []
         for t in range(T):

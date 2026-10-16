@@ -1,0 +1,27 @@
+# Learnability check: small task, enough steps to see recall leave zero.
+n_train: 20000
+n_val: 1000
+n_test: 1000
+data:
+  vocab_size: 2048
+  seq_len: 128
+  num_kv_pairs: 16
+  num_updates: 4
+  num_distractors: 4
+  power_a: 0.01
+  min_delay: 0
+model:
+  d_model: 128
+  n_layers: 2
+  n_heads: 2
+  slots: 8
+  mem_dim: 64
+  writer: controller
+train:
+  steps: 2000
+  batch_size: 64
+  lr: 1.0e-3
+  warmup: 100
+  eval_every: 250
+  eval_batches: 4
+eval_lengths: [256]

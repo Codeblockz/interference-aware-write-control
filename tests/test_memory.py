@@ -96,3 +96,12 @@ def test_residual_writer_writes_more_when_readout_wrong():
     m.write(torch.tensor([[1.0, 0, 0, 0]]), k, v)
     g_known = w(m, k, v, 1, 8).sum()
     assert g_empty > g_known
+
+
+def test_controller_hard_gate_is_one_hot_times_scalar():
+    m = _mem(B=2, S=5, d=8)
+    m.write(torch.ones(2, 5) * 0.5, torch.randn(2, 8), torch.randn(2, 8))
+    c = InterferenceController(hidden=16, hard=True)
+    g = c(m, torch.randn(2, 8), torch.randn(2, 8), 3, 10)
+    assert ((g > 0).sum(-1) == 1).all()  # exactly one slot written
+    assert torch.allclose(g.max(-1).values, g.sum(-1))

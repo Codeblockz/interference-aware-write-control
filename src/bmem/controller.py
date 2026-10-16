@@ -41,9 +41,10 @@ class Writer(nn.Module):
 
 
 class InterferenceController(Writer):
-    def __init__(self, hidden: int = 64, interference: bool = True):
+    def __init__(self, hidden: int = 64, interference: bool = True, hard: bool = True):
         super().__init__()
         self.interference = interference
+        self.hard = hard  # straight-through one-hot slot choice; soft gradient
         self.n_feat = 6
         self.slot_mlp = nn.Sequential(nn.Linear(self.n_feat, hidden), nn.GELU(), nn.Linear(hidden, 1))
         self.write_mlp = nn.Sequential(nn.Linear(3, hidden), nn.GELU(), nn.Linear(hidden, 1))
@@ -66,7 +67,11 @@ class InterferenceController(Writer):
         phi, pooled = self.features(mem, key, value, seq_len)
         slot_logits = self.slot_mlp(phi).squeeze(-1)  # (B, S)
         write = torch.sigmoid(self.write_mlp(pooled))  # (B, 1)
-        return write * torch.softmax(slot_logits, dim=-1)
+        soft = torch.softmax(slot_logits, dim=-1)
+        if self.hard:
+            one_hot = torch.nn.functional.one_hot(soft.argmax(-1), soft.shape[-1]).to(soft.dtype)
+            soft = one_hot + soft - soft.detach()
+        return write * soft
 
 
 class RecencyWriter(Writer):
