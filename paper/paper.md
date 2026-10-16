@@ -105,8 +105,8 @@ memory is updated. The answer head sees the backbone output and the readout.](fi
 
 **Backbone.** $L$ pre-norm blocks of gated linear attention (GLA) [@yang2023gla] with an
 MLP, using the `flash-linear-attention` implementation. GLA keeps, per head and layer, a
-$d_k \times d_v$ recurrent state with a learned data-dependent decay. Pilot: $L = 4$,
-$d_{\text{model}} = 256$, 4 heads; the full pilot model has 7.6M parameters including the 8192-token embedding and the output head. The final paper
+$d_k \times d_v$ recurrent state with a learned data-dependent decay. Pilot: $L = 2$,
+$d_{\text{model}} = 256$, 4 heads, 2048-token vocabulary. The final paper
 scales to the proposal's 20M.
 
 **Projections.** From the backbone output $h_t \in \mathbb{R}^{d_{\text{model}}}$:
@@ -156,7 +156,9 @@ occupancy, mean value disagreement) concatenated with $c_t = W_c h_t \in \mathbb
 a low-dimensional projection of the current token's representation. The content input is
 what lets the controller learn that a value token following a key is worth storing and a
 filler token is not; without it, the decision to write could depend only on memory
-statistics, and in the pilot diagnostics learning then depended on luck (Section 4.2). The gate is
+statistics, and in the pilot diagnostics learning then depended on luck (Section 4.2). A learnable scalar prior $\beta$ (initialized to 5) adds $\beta\,(a_j/T + 1 - f_j)$ to
+$\ell_{t,j}$, so at initialization the controller prefers empty and then oldest slots, which
+is the recency writer; the MLP only has to learn deviations from it. The gate is
 $$
 g_{t,j} = \sigma(w_t)\, \operatorname{onehot}\!\big(\arg\max_j \ell_{t,j}\big),
 $$
@@ -307,10 +309,27 @@ fixed one at a time with the smallest change that tested each hypothesis:
 
 After these fixes a one-factor scan from the smallest learnable task showed that vocabulary
 (512 to 8192) and length (64 to 128) did not block learning, but the ratio of associations
-to slots did, and the 64-association target was still at chance after 1400 steps, with one
-run producing a NaN loss. The pilot therefore moved to the 24-association, 16-slot setting
-of Section 2.1, which is the largest that learned within a 4000-step budget. Reaching the
+to slots did, and the 64-association target was still at chance after 1400 steps. The pilot
+therefore moved to the 24-association, 16-slot setting of Section 2.1. Reaching the
 proposal's target is the first item of future work (Section 5.3).
+
+Two further problems appeared at that setting and were traced the same way:
+
+4. *Cold start.* With more associations than slots, the controller's random initial policy
+   thrashed the memory and the first 4000-step pilot stayed at chance while recency reached
+   10.9%. A learnable recency prior on the slot logits (Section 2.3) starts the controller
+   as the recency writer so retrieval works from step 0; recall then rose to 25% by step
+   1000.
+5. *Gradient blow-up in the memory loop.* Runs then collapsed after about 1000 steps, and
+   one produced a NaN loss. Per-group gradient norms showed spikes of $10^4$ to $10^5$ in the
+   writer, the projections, and the backbone blocks, with the answer head unaffected, while
+   the backbone trained alone never exceeded 2. The source was the $1/\lVert x\rVert$ factor
+   in the gradients of the cosine similarity and the L2 disagreement: slot keys are convex
+   mixtures and can shrink toward zero. Adding an $\epsilon = 10^{-2}$ inside both square
+   roots bounded the gradient; the worst spike fell from 65,000 to 50 and the collapse
+   disappeared. Lowering the learning rate from $10^{-3}$ to $3 \times 10^{-4}$ on
+   validation removed the remaining heavy clipping, and the pilot backbone was reduced to
+   two layers because depth only slowed learning at this task size.
 
 <!-- PILOT_TABLE -->
 
@@ -361,10 +380,10 @@ establish language-model gains.
 3. **Write-loop cost.** The memory update is a sequential loop over tokens and takes 98% of
    step time (0.65 s per step at batch 64, length 512). A compiled step body gave 2x; the
    full sweep needs a vectorized or fused update, which is scheduled before the sweep.
-4. **Numerical stability.** One 64-association run reached a NaN loss at step 1400 under
-   bf16 autocast. The cause has not been isolated; the memory loop runs in fp32, so the
-   backbone or the head is the suspect. A gradient-norm and loss guard with fp32 fallback
-   will be added before the sweep.
+4. **Numerical stability.** Resolved for the pilot (Section 4.2, item 5), but the memory
+   loop still produces backbone gradient norms of 20 to 50 that clipping must absorb. A
+   per-group clip or a truncated backward pass through the memory recurrence is the next
+   thing to test before the sweep.
 5. **Baselines not yet trained.** The residual-cache and position-activation writers are
    implemented and unit-tested but have no training runs; their learned threshold and
    schedule need validation-set tuning before they count as fair comparisons.
