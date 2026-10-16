@@ -168,7 +168,7 @@ The write can still be suppressed entirely through $\sigma(w_t)$. A fully soft g
 tried first and did not learn: at initialization it spreads each association across all
 slots, the memory never holds a retrievable entry, and so no gradient arrives to sharpen
 it. Hard forward selection with a soft backward path is the same device ARM uses for its
-slot router [@zeng2026arm]. The controller has 1,858 parameters in the pilot, plus 4,112 in the content projection; the full pilot model has 7.6M. Its decision
+slot router [@zeng2026arm]. The controller has 1,859 parameters in the pilot (including the prior), plus 4,112 in the content projection; the full two-layer pilot model has 2.84M. Its decision
 depends only on the current association and the memory, so it adds no per-sequence state
 beyond the memory's own age, usage, and occupancy scalars, which are counted in the budget.
 
@@ -331,12 +331,22 @@ Two further problems appeared at that setting and were traced the same way:
    validation removed the remaining heavy clipping, and the pilot backbone was reduced to
    two layers because depth only slowed learning at this task size.
 
-<!-- PILOT_TABLE -->
+| Writer | Params | State / seq | Recall L=128 | Recall L=256 | Recall L=512 | Train (min) | Tokens/s | Peak GPU (MB) |
+|---|---|---|---|---|---|---|---|---|
+| Interference controller | 2.84M | 80 KB | **51.9** [51.7, 52.2] | **52.1** [51.9, 52.3] | **52.1** [51.9, 52.3] | 16 | 34k | 871 |
+| No-interference ablation | 2.84M | 80 KB | 50.7 [50.5, 50.9] | 50.8 [50.6, 51.0] | 50.9 [50.6, 51.1] | 15 | 36k | 806 |
+| Recency | 2.84M | 80 KB | 11.0 [10.9, 11.1] | 9.6 [9.5, 9.7] | 8.7 [8.6, 8.8] | 7 | 78k | 590 |
+
+Paired differences on the same 10,000 test sequences at L=128: controller minus recency
++40.9 pp, paired 95% CI [+40.7, +41.2]; controller minus ablation +1.3 pp, paired 95% CI
+[+1.0, +1.5] (and the same +1.3 pp at L=512).
 
 Table 1. Pilot run, seed 0, 24 associations and 16 slots, trained at length 128. Exact
 recall on 10,000 test sequences with 95% bootstrap CI; cost columns measured on one RTX 5090.
 
-<!-- PILOT_FIGURE -->
+![Figure 2. Pilot run, seed 0. Left: validation exact recall during training. Right: test
+recall against evaluation length (trained at 128), with 95% bootstrap intervals that are
+narrower than the markers.](figures/pilot.png)
 
 *Pipeline checks that passed.* Unit tests cover split disjointness, answer-position
 masking, the slot update's identity at zero gate, gate range and normalization, and
@@ -344,7 +354,31 @@ gradient flow into the controller and into both memory projections. A 64-sequenc
 overfit check drives the loss below 0.1 in 300 steps, confirming that the read path can
 carry the answer.
 
-<!-- PILOT_DISCUSSION -->
+*What the pilot shows.* Three things, none of them a test of the hypotheses yet.
+
+First, learned allocation matters at this density: both learned writers reach about 52%
+exact recall where recency reaches 11%, because recency overwrites the stored pairs with the
+filler and query tokens that follow them. The gap is 41 points on one seed with a paired
+interval that excludes zero by a wide margin; it is not the H1 comparison, since recency is
+the weakest control, not the strongest.
+
+Second, both learned writers hold their recall when evaluated at two and four times the
+training length (52.1% at L=512 for the controller), while recency degrades (11.0% to 8.7%).
+The memory, not the backbone's recurrent state, is carrying the answers: longer sequences
+add filler, and a writer that has learned not to store filler is unaffected by it.
+
+Third, the interference features add 1.3 points over the content-and-novelty ablation at
+every length, with a paired interval of [+1.0, +1.5]. That is the direction H2 predicts but
+far below the five points H1 asks for, and one seed with one setting cannot distinguish a
+small real effect from a seed-level difference. The ceiling is informative: with 16 queried
+keys and 16 slots a perfect writer would reach 100%, because the 4 updates can overwrite
+their own key's slot and the 4 distractors can be refused. Both learned writers plateau at
+about half of that, so the dominant error is not the interference decision but the earlier
+decision of what to admit at all. Section 5.2 says what the full sweep will do about it.
+
+*Cost.* At this size one run is 16 minutes on an RTX 5090 at under 1 GB, so the full sweep
+of 90 runs (Section 4.1) is about a day of GPU time at the current loop speed, or a few
+hours once the write loop is vectorized.
 
 # 5. Conclusions
 
@@ -356,15 +390,22 @@ off without changing its size, and three baselines that isolate the novelty, res
 position signals used by the cited work. The survey shows that the interference signal is
 absent from existing allocation rules, which is what makes H1 and H2 worth testing. The
 pilot shows the pipeline trains and evaluates at a known cost, so the full sweep is
-feasible on one GPU before the final deadline.
+feasible on one GPU before the final deadline. It also gives one seed of evidence that
+learned allocation beats recency by 41 points at 1.5 associations per slot, that the memory
+generalizes to four times the training length, and that the interference signal adds a
+small positive amount (+1.3 points) on top of content and novelty.
 
 ## 5.2 What the final paper will answer
 
 Whether H1 holds, and at which densities; whether H2 holds, which separates "a learned
 router helps" from "the interference signal helps"; how each writer's gate statistics
-explain its errors; and where a 32-slot budget fails for every writer. Because the task is
-synthetic, the findings bound what allocation can do on associative recall; they do not
-establish language-model gains.
+explain its errors; and where a fixed budget fails for every writer. The pilot's 50%
+plateau says the next analysis is the write-admission decision: logging which tokens each
+writer admits (key-value pairs, updates, distractors, filler) will show whether the
+plateau is a capacity limit or a learning limit, and the interference features should
+matter most exactly on updates, where the right action is to overwrite the same key's
+slot. Because the task is synthetic, the findings bound what allocation can do on
+associative recall; they do not establish language-model gains.
 
 ## 5.3 Risks identified by the pilot, and what changes before the final paper
 
@@ -388,6 +429,5 @@ establish language-model gains.
    implemented and unit-tested but have no training runs; their learned threshold and
    schedule need validation-set tuning before they count as fair comparisons.
 
-<!-- PILOT_RISKS -->
 
 # References

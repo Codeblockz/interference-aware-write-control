@@ -33,6 +33,16 @@ def load(root: Path) -> list[dict]:
     return [json.loads(f.read_text()) for f in sorted(root.rglob("results.json"))]
 
 
+def stagger(ys: list[float], min_gap: float = 4.5) -> list[float]:
+    """Nudge label y-positions apart (in data units) so close series stay readable."""
+    order = sorted(range(len(ys)), key=lambda i: ys[i])
+    out = list(ys)
+    for a, b in zip(order, order[1:]):
+        if out[b] - out[a] < min_gap:
+            out[b] = out[a] + min_gap
+    return out
+
+
 def style(ax, title):
     ax.set_title(title, loc="left", color=TEXT, fontsize=10, pad=8)
     ax.grid(True, axis="y", color=GRID, linewidth=0.8)
@@ -54,6 +64,7 @@ def main(root: Path, out: Path):
         ax.set_facecolor("#fcfcfb")
 
     # Left: training curves.
+    finals, ends = [], []
     for w in writers:
         color, label = SERIES[w]
         hs = [r["history"] for r in rows if r["writer"] == w]
@@ -61,14 +72,16 @@ def main(root: Path, out: Path):
         vals = np.array([[h["val_recall"] for h in hist] for hist in hs]).mean(0)
         ax1.plot(steps, 100 * vals, color=color, linewidth=2, label=label)
         ax1.plot(steps[-1], 100 * vals[-1], "o", color=color, markersize=5)
-        ax1.annotate(label, (steps[-1], 100 * vals[-1]), xytext=(4, 0), textcoords="offset points",
-                     fontsize=7.5, color=TEXT, va="center")
+        finals.append(100 * vals[-1]); ends.append((steps[-1], label))
+    for (x, label), y in zip(ends, stagger(finals)):
+        ax1.annotate(label, (x, y), xytext=(5, 0), textcoords="offset points", fontsize=7.5, color=TEXT, va="center")
     ax1.set_xlabel("training step")
     ax1.set_ylabel("validation exact recall (%)")
     ax1.set_ylim(0, 100)
     style(ax1, "Training: validation recall")
 
     # Right: recall vs eval length.
+    finals2, ends2 = [], []
     for w in writers:
         color, label = SERIES[w]
         rs = [r for r in rows if r["writer"] == w]
@@ -78,8 +91,9 @@ def main(root: Path, out: Path):
         hi = [100 * np.mean([r["eval"][f"L{L}"]["recall_ci95"][1] for r in rs]) for L in Ls]
         ax2.errorbar(Ls, mean, yerr=[np.subtract(mean, lo), np.subtract(hi, mean)], color=color,
                      linewidth=2, marker="o", markersize=5, capsize=3, label=label)
-        ax2.annotate(f"{mean[-1]:.0f}%", (Ls[-1], mean[-1]), xytext=(5, 0), textcoords="offset points",
-                     fontsize=7.5, color=TEXT, va="center")
+        finals2.append(mean[-1]); ends2.append(Ls[-1])
+    for x, y0, y in zip(ends2, finals2, stagger(finals2)):
+        ax2.annotate(f"{y0:.0f}%", (x, y), xytext=(6, 0), textcoords="offset points", fontsize=7.5, color=TEXT, va="center")
     train_len = rows[0]["config"]["data"]["seq_len"]
     ax2.axvline(train_len, color=GRID, linewidth=1, linestyle="--")
     ax2.annotate("train length", (train_len, 94), xytext=(4, 0), textcoords="offset points", fontsize=7, color=MUTED, ha="left")
