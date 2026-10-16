@@ -61,3 +61,7 @@ bash paper/build.sh RP2
 
 Course venv: `~/venvs/jhu-742` (Python 3.13, torch cu128 for the RTX 5090 / sm_120).
 Jupyter kernel: `jhu-742`. Keep datasets under `~/datasets/`, not in the vault.
+- 2026-10-16: controller cold start fixed with a learnable recency prior on slot logits;
+  gradient blow-up in the memory loop traced to 1/||x|| gradients of cosine/L2 features
+  (eps=1e-2 added; spikes 65k -> 50); content projection of the token feeds the write
+  decision; pilot lr 3e-4, 2 layers. Proposal-scale task (64 assoc) still unlearned.
