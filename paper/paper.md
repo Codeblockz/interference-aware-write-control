@@ -9,16 +9,19 @@ abstract: |
   with allocation rules driven by input novelty, prediction residuals, or position. This
   paper asks whether a write controller that also estimates *interference*, the conflict
   between an incoming association and the associations already stored, allocates a fixed
-  memory budget better. We build a gated-linear-attention backbone with a 32-slot
-  external memory, a small learned controller that produces per-slot write gates from
-  novelty and interference features, and four allocation baselines that share the same
-  backbone and budget. On an extended multi-query associative recall task with 64
-  associations, key updates, and distractors, we test (H1) whether the controller beats
-  the strongest baseline by at least five percentage points of exact recall and (H2)
-  whether removing the interference features removes that gain. This draft reports the
-  method, a systematic survey of allocation mechanisms, the experimental protocol, and a
-  single-seed pilot run that establishes the pipeline and its compute cost. Full
-  multi-seed results with confidence intervals follow in the final paper.
+  memory budget better. We build a gated-linear-attention backbone with a bounded slot
+  memory, a small learned controller that produces per-slot write gates from content,
+  novelty, and interference features, and four allocation baselines that share the same
+  backbone and budget. On an extended multi-query associative recall task with key
+  updates and distractors, we test (H1) whether the controller beats the strongest
+  baseline by at least five percentage points of exact recall at 64 associations and 32
+  slots, and (H2) whether removing the interference features removes that gain. This
+  draft reports the method, a systematic survey of allocation mechanisms, the
+  experimental protocol, and a single-seed pilot at a reduced size (24 associations, 16
+  slots) that establishes the pipeline, its compute cost, and a first comparison: both
+  learned writers reach 52% exact recall against 11% for recency, generalize to four
+  times the training length, and the interference features add 1.3 points over the
+  ablation. Multi-seed results at the target size follow in the final paper.
 ---
 
 # 1. Introduction and Goals
@@ -197,7 +200,8 @@ decay, gradient clipping at 1.0, bf16 autocast for the backbone with the memory 
 fp32. Hyperparameters (learning rate, controller hidden size, gate temperature) are tuned
 on validation only. State bytes per sequence are reported as backbone recurrent state
 plus $S(2d + 3)$ floats of memory plus any writer statistics; for the pilot model that is
-131 KB backbone, 33 KB memory, 0 writer.
+64 KB backbone, 16 KB memory, 0 writer, 80 KB in all for the two-layer pilot model,
+identical across writers.
 
 # 3. Related Work
 
@@ -318,8 +322,8 @@ Two further problems appeared at that setting and were traced the same way:
 4. *Cold start.* With more associations than slots, the controller's random initial policy
    thrashed the memory and the first 4000-step pilot stayed at chance while recency reached
    10.9%. A learnable recency prior on the slot logits (Section 2.3) starts the controller
-   as the recency writer so retrieval works from step 0; recall then rose to 25% by step
-   1000.
+   as the recency writer so retrieval works from step 0; in the diagnostic, recall then rose to 25% by
+   step 1000 instead of staying at chance.
 5. *Gradient blow-up in the memory loop.* Runs then collapsed after about 1000 steps, and
    one produced a NaN loss. Per-group gradient norms showed spikes of $10^4$ to $10^5$ in the
    writer, the projections, and the backbone blocks, with the answer head unaffected, while
@@ -416,8 +420,8 @@ associative recall; they do not establish language-model gains.
    and grows $N$, which also matches how the proposal varies density.
 2. **Cold start of learned allocation.** With many more associations than slots, a random
    initial policy thrashes the memory and no retrieval signal reaches the controller. The
-   content projection reduced this; the curriculum above is the remaining mitigation, and
-   a recency prior on the slot logits is a cheap alternative to test.
+   content projection and the recency prior (Section 2.3) fixed it at the pilot size; the
+   curriculum above is the remaining mitigation for the target size.
 3. **Write-loop cost.** The memory update is a sequential loop over tokens and takes 98% of
    step time (0.65 s per step at batch 64, length 512). A compiled step body gave 2x; the
    full sweep needs a vectorized or fused update, which is scheduled before the sweep.
