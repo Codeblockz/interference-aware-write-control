@@ -1,0 +1,28 @@
+# RP2 pilot, medium setting: 32 queried + 8 updates + 8 distractors (48 associations),
+# 32 slots, train length 256, vocab 2048. Controller vs no_interference vs recency.
+n_train: 100000
+n_val: 5000
+n_test: 10000
+data:
+  vocab_size: 2048
+  seq_len: 256
+  num_kv_pairs: 32
+  num_updates: 8
+  num_distractors: 8
+  power_a: 0.01
+  min_delay: 0
+model:
+  d_model: 256
+  n_layers: 4
+  n_heads: 4
+  slots: 32
+  mem_dim: 128
+  writer: controller
+train:
+  steps: 6000
+  batch_size: 64
+  lr: 1.0e-3
+  warmup: 200
+  eval_every: 500
+  eval_batches: 10
+eval_lengths: [512, 1024]
