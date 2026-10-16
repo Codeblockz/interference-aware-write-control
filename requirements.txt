@@ -1,0 +1,6 @@
+# torch 2.11+cu128 is already in ~/venvs/jhu-742
+numpy
+pyyaml
+matplotlib
+pytest
+einops

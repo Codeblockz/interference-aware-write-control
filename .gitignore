@@ -1,0 +1,8 @@
+runs/
+data_cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+paper/*.docx
+paper/*.pdf
+.venv/
