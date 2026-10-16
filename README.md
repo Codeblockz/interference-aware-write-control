@@ -20,6 +20,36 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 - `instructions/` — rubric (5 criteria, 100 pts), the three RP assignment briefs, and the
   general assignment/submission guidelines.
 - `proposal/` — the submitted proposal (.docx original, .md transcription, architecture figure).
+- `src/bmem/` — the model: `data.py` (MQAR + updates/distractors/delay, adapted from Zoology),
+  `backbone.py` (GLA via flash-linear-attention), `memory.py` (slot memory), `controller.py`
+  (interference controller + 4 baseline writers), `model.py`, `train.py`, `metrics.py`.
+- `experiments/` — `run.py` (one run -> `results.json`), `aggregate.py` (tables, paired
+  bootstrap), `plot.py` (figures), `configs/` (smoke, sanity, pilot).
+- `tests/` — `pytest` (fast) and `pytest -m slow` (GPU learnability regression).
+- `paper/` — `paper.md` master, `refs.bib`, `prisma/search-log.md`, `figures/`,
+  `build.sh` (pandoc -> `Ellis-RP2.docx`).
+- `runs/` — gitignored outputs.
+
+## How to run
+
+```bash
+source ~/venvs/jhu-742/bin/activate
+pytest                                   # fast tests
+pytest -m slow                           # ~1 min GPU learnability check
+python experiments/run.py --config experiments/configs/pilot.yaml --writer controller --seed 0 --out_dir runs/pilot/controller_s0
+python experiments/aggregate.py runs/pilot --pair controller recency
+python experiments/plot.py runs/pilot --out paper/figures/pilot.png
+bash paper/build.sh RP2
+```
+
+## Decisions log
+
+- 2026-10-15: key projected from the preceding token (`assoc_shift=1`) and straight-through
+  hard slot gates in the controller. Both were needed for the memory path to learn at all;
+  see `tests/test_smoke.py::test_controller_learns_small_task`.
+- 2026-10-15: fla GLA works on sm_120 (torch 2.11 cu128). The sequential memory loop is
+  98% of step time (0.65 s/step at B=64, T=512); torch.compile of the step body gives ~2x.
+  Proper fix (fused/vectorized write loop) deferred to after RP2.
 
 ## Rubric reminders
 

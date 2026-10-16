@@ -109,7 +109,13 @@ $d_{\text{model}} = 256$, 4 heads, 5.9M parameters including embeddings. The fin
 scales to the proposal's 20M.
 
 **Projections.** From the backbone output $h_t \in \mathbb{R}^{d_{\text{model}}}$:
-$q_t = W_q h_t$, $k_t = W_k h_t$, $v_t = W_v h_t$, all in $\mathbb{R}^{d}$ with $d = 128$.
+$q_t = W_q h_t$, $v_t = W_v h_t$, and $k_t = W_k h_{t-1}$, all in $\mathbb{R}^{d}$ with
+$d = 128$. The key is projected from the *preceding* position because an association is a
+(key, value) token pair: the value token's own representation carries the value, and the
+token before it carries the key. Without this one-step shift the backbone must first learn
+to copy each key one position forward before the memory can store anything retrievable;
+in a pilot diagnostic that cost a four-fold difference in recall at equal training steps
+(Section 4.2). All writers share this projection, so it does not favor the controller.
 
 **Slot memory.** $S$ slots, each a key $k_j$ and value $v_j$ in $\mathbb{R}^{d}$, plus
 scalar age $a_j$, usage $c_j$, and occupancy $f_j$. Read is attention over occupied slots:
@@ -146,10 +152,15 @@ A two-layer MLP maps $\phi_{t,j}$ to a logit $\ell_{t,j}$; a second small MLP ma
 pooled summary (novelty, mean occupancy, mean value disagreement) to a scalar write logit
 $w_t$. The gate is
 $$
-g_{t,j} = \sigma(w_t)\, \operatorname{softmax}_j(\ell_{t,j}),
+g_{t,j} = \sigma(w_t)\, \operatorname{onehot}\!\big(\arg\max_j \ell_{t,j}\big),
 $$
-so one slot dominates each write and the write can be suppressed entirely, while the whole
-mapping stays differentiable. The controller has 834 parameters in the pilot. Its decision
+with the straight-through estimator: the forward pass writes exactly one slot, and the
+backward pass uses the gradient of $\operatorname{softmax}_j(\ell_{t,j})$ in its place.
+The write can still be suppressed entirely through $\sigma(w_t)$. A fully soft gate was
+tried first and did not learn: at initialization it spreads each association across all
+slots, the memory never holds a retrievable entry, and so no gradient arrives to sharpen
+it. Hard forward selection with a soft backward path is the same device ARM uses for its
+slot router [@zeng2026arm]. The controller has 834 parameters in the pilot. Its decision
 depends only on the current association and the memory, so it adds no per-sequence state
 beyond the memory's own age, usage, and occupancy scalars, which are counted in the budget.
 
