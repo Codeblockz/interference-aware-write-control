@@ -1,0 +1,5 @@
+This project includes code adapted from HazyResearch/zoology
+(https://github.com/HazyResearch/zoology), licensed under the Apache License 2.0.
+Adapted files: src/bmem/data.py (from zoology/data/multiquery_ar.py and
+zoology/data/forgetting_mqar.py). The Apache License 2.0 text is at
+https://www.apache.org/licenses/LICENSE-2.0.

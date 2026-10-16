@@ -1,0 +1,12 @@
+[project]
+name = "bmem"
+version = "0.1.0"
+description = "Interference-aware write control for bounded-memory recurrent models (EN.705.742 research project)"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
