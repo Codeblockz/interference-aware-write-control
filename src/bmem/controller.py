@@ -2,7 +2,10 @@
 
 All writers share one interface::
 
-    gates = writer(mem, key, value, pos, seq_len)   # (B, S), entries in [0, 1]
+    gates = writer(mem, key, value, pos, seq_len, ctx)   # (B, S), entries in [0, 1]
+
+``ctx`` is a small projection of the backbone output at the current position (what the
+token *is*); only learned writers use it, for the scalar "write at all" decision.
 
 ``InterferenceController`` is the proposed method. Per-slot features
 
@@ -36,18 +39,22 @@ class Writer(nn.Module):
 
     n_stat_floats: int = 0  # extra per-sequence floats the writer keeps beyond the memory
 
-    def forward(self, mem: SlotMemory, key: Tensor, value: Tensor, pos: int, seq_len: int) -> Tensor:
+    ctx_dim: int = 0  # >0 for writers that take a content projection
+
+    def forward(self, mem: SlotMemory, key: Tensor, value: Tensor, pos: int, seq_len: int, ctx: Tensor | None = None) -> Tensor:
         raise NotImplementedError
 
 
 class InterferenceController(Writer):
+    ctx_dim = 16
+
     def __init__(self, hidden: int = 64, interference: bool = True, hard: bool = True):
         super().__init__()
         self.interference = interference
         self.hard = hard  # straight-through one-hot slot choice; soft gradient
         self.n_feat = 6
         self.slot_mlp = nn.Sequential(nn.Linear(self.n_feat, hidden), nn.GELU(), nn.Linear(hidden, 1))
-        self.write_mlp = nn.Sequential(nn.Linear(3, hidden), nn.GELU(), nn.Linear(hidden, 1))
+        self.write_mlp = nn.Sequential(nn.Linear(3 + self.ctx_dim, hidden), nn.GELU(), nn.Linear(hidden, 1))
 
     def features(self, mem: SlotMemory, key: Tensor, value: Tensor, seq_len: int) -> tuple[Tensor, Tensor]:
         sim = mem.similarity(key)  # (B, S)
@@ -63,10 +70,12 @@ class InterferenceController(Writer):
         pooled = torch.cat([novelty, mem.filled.mean(-1, keepdim=True), dis.mean(-1, keepdim=True)], -1)
         return phi, pooled
 
-    def forward(self, mem, key, value, pos, seq_len):
+    def forward(self, mem, key, value, pos, seq_len, ctx=None):
         phi, pooled = self.features(mem, key, value, seq_len)
-        slot_logits = self.slot_mlp(phi).squeeze(-1)  # (B, S)
-        write = torch.sigmoid(self.write_mlp(pooled))  # (B, 1)
+        if ctx is None:
+            ctx = pooled.new_zeros(pooled.shape[0], self.ctx_dim)
+        slot_logits = self.slot_mlp(phi).squeeze(-1)  # (B, S): where to write (interference, age)
+        write = torch.sigmoid(self.write_mlp(torch.cat([pooled, ctx], -1)))  # (B, 1): whether to write (content + memory)
         soft = torch.softmax(slot_logits, dim=-1)
         if self.hard:
             one_hot = torch.nn.functional.one_hot(soft.argmax(-1), soft.shape[-1]).to(soft.dtype)
@@ -77,7 +86,7 @@ class InterferenceController(Writer):
 class RecencyWriter(Writer):
     """Round-robin: always overwrite the slot written longest ago (oldest age; empty first)."""
 
-    def forward(self, mem, key, value, pos, seq_len):
+    def forward(self, mem, key, value, pos, seq_len, ctx=None):
         score = mem.age + (1 - mem.filled) * 1e6  # empty slots first, then oldest
         idx = score.argmax(dim=-1)
         return torch.nn.functional.one_hot(idx, mem.S).to(key.dtype)
@@ -95,7 +104,7 @@ class ResidualCacheWriter(Writer):
         self.threshold = nn.Parameter(torch.tensor(init_threshold))
         self.sharpness = nn.Parameter(torch.tensor(8.0))
 
-    def forward(self, mem, key, value, pos, seq_len):
+    def forward(self, mem, key, value, pos, seq_len, ctx=None):
         readout = mem.read(key)
         residual = (readout - value).norm(dim=-1) / (mem.d**0.5)  # (B,)
         write = torch.sigmoid(self.sharpness * (residual - self.threshold)).unsqueeze(-1)
@@ -108,7 +117,7 @@ class PositionWriter(Writer):
     """Proteus-style incremental activation: slot j is unlocked once pos >= j * T / S,
     writes go round-robin among unlocked slots. Capacity grows with position."""
 
-    def forward(self, mem, key, value, pos, seq_len):
+    def forward(self, mem, key, value, pos, seq_len, ctx=None):
         unlocked = int(min(mem.S, max(1, (pos + 1) * mem.S // seq_len + 1)))
         score = mem.age + (1 - mem.filled) * 1e6
         score[:, unlocked:] = -1e9

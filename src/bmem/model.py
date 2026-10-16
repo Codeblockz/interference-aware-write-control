@@ -44,6 +44,7 @@ class RecallModel(nn.Module):
             self.writer = WRITERS[cfg.writer]()
             self.writer.slot_mlp[0] = nn.Linear(self.writer.n_feat, cfg.controller_hidden)
             self.writer.slot_mlp[2] = nn.Linear(cfg.controller_hidden, 1)
+        self.to_ctx = nn.Linear(cfg.d_model, self.writer.ctx_dim) if self.writer.ctx_dim else None
         self.head = nn.Sequential(
             nn.Linear(cfg.d_model + cfg.mem_dim, cfg.d_model), nn.GELU(), nn.Linear(cfg.d_model, cfg.vocab_size)
         )
@@ -55,11 +56,12 @@ class RecallModel(nn.Module):
             [h.new_zeros(B, self.cfg.assoc_shift, h.shape[-1]), h[:, : -self.cfg.assoc_shift]], dim=1
         )
         q, k, v = self.to_q(h).float(), self.to_k(h_key).float(), self.to_v(h).float()
+        ctx = self.to_ctx(h).float() if self.to_ctx is not None else None
         mem = SlotMemory(B, self.cfg.slots, self.cfg.mem_dim, tokens.device)
         reads, gates = [], []
         for t in range(T):
             reads.append(mem.read(q[:, t]))
-            g = self.writer(mem, k[:, t], v[:, t], t, T)
+            g = self.writer(mem, k[:, t], v[:, t], t, T, None if ctx is None else ctx[:, t])
             mem.write(g, k[:, t], v[:, t])
             if return_gates:
                 gates.append(g)
