@@ -105,7 +105,7 @@ memory is updated. The answer head sees the backbone output and the readout.](fi
 **Backbone.** $L$ pre-norm blocks of gated linear attention (GLA) [@yang2023gla] with an
 MLP, using the `flash-linear-attention` implementation. GLA keeps, per head and layer, a
 $d_k \times d_v$ recurrent state with a learned data-dependent decay. Pilot: $L = 4$,
-$d_{\text{model}} = 256$, 4 heads, 5.9M parameters including embeddings. The final paper
+$d_{\text{model}} = 256$, 4 heads; the full pilot model has 7.6M parameters including the 8192-token embedding and the output head. The final paper
 scales to the proposal's 20M.
 
 **Projections.** From the backbone output $h_t \in \mathbb{R}^{d_{\text{model}}}$:
@@ -148,9 +148,14 @@ the stored answer. Together they distinguish a harmless duplicate (similar key, 
 value) from a genuine key update (similar key, new value) and from a collision between
 unrelated associations whose keys happen to be close.
 
-A two-layer MLP maps $\phi_{t,j}$ to a logit $\ell_{t,j}$; a second small MLP maps a
-pooled summary (novelty, mean occupancy, mean value disagreement) to a scalar write logit
-$w_t$. The gate is
+A two-layer MLP maps $\phi_{t,j}$ to a logit $\ell_{t,j}$: this decides *where* a write
+goes, from interference and slot age alone. A second small MLP decides *whether* to write
+at all, producing a scalar logit $w_t$ from a pooled memory summary (novelty, mean
+occupancy, mean value disagreement) concatenated with $c_t = W_c h_t \in \mathbb{R}^{16}$,
+a low-dimensional projection of the current token's representation. The content input is
+what lets the controller learn that a value token following a key is worth storing and a
+filler token is not; without it, the decision to write could depend only on memory
+statistics, and in the pilot diagnostics learning then depended on luck (Section 4.2). The gate is
 $$
 g_{t,j} = \sigma(w_t)\, \operatorname{onehot}\!\big(\arg\max_j \ell_{t,j}\big),
 $$
@@ -160,7 +165,7 @@ The write can still be suppressed entirely through $\sigma(w_t)$. A fully soft g
 tried first and did not learn: at initialization it spreads each association across all
 slots, the memory never holds a retrievable entry, and so no gradient arrives to sharpen
 it. Hard forward selection with a soft backward path is the same device ARM uses for its
-slot router [@zeng2026arm]. The controller has 834 parameters in the pilot. Its decision
+slot router [@zeng2026arm]. The controller has 1,858 parameters in the pilot, plus 4,112 in the content projection; the full pilot model has 7.6M. Its decision
 depends only on the current association and the memory, so it adds no per-sequence state
 beyond the memory's own age, usage, and occupancy scalars, which are counted in the budget.
 
