@@ -48,13 +48,17 @@ class Writer(nn.Module):
 class InterferenceController(Writer):
     ctx_dim = 16
 
-    def __init__(self, hidden: int = 64, interference: bool = True, hard: bool = True):
+    def __init__(self, hidden: int = 64, interference: bool = True, hard: bool = True, prior: float = 5.0):
         super().__init__()
         self.interference = interference
         self.hard = hard  # straight-through one-hot slot choice; soft gradient
         self.n_feat = 6
         self.slot_mlp = nn.Sequential(nn.Linear(self.n_feat, hidden), nn.GELU(), nn.Linear(hidden, 1))
         self.write_mlp = nn.Sequential(nn.Linear(3 + self.ctx_dim, hidden), nn.GELU(), nn.Linear(hidden, 1))
+        # Recency prior on the slot choice: at init the controller behaves like the recency
+        # writer (empty slot first, then oldest), so retrieval works from step 0 and the
+        # learned logits only have to express deviations from it.
+        self.prior = nn.Parameter(torch.tensor(prior))
 
     def features(self, mem: SlotMemory, key: Tensor, value: Tensor, seq_len: int) -> tuple[Tensor, Tensor]:
         sim = mem.similarity(key)  # (B, S)
@@ -75,6 +79,7 @@ class InterferenceController(Writer):
         if ctx is None:
             ctx = pooled.new_zeros(pooled.shape[0], self.ctx_dim)
         slot_logits = self.slot_mlp(phi).squeeze(-1)  # (B, S): where to write (interference, age)
+        slot_logits = slot_logits + self.prior * (mem.age / float(seq_len) + (1 - mem.filled))
         write = torch.sigmoid(self.write_mlp(torch.cat([pooled, ctx], -1)))  # (B, 1): whether to write (content + memory)
         soft = torch.softmax(slot_logits, dim=-1)
         if self.hard:
