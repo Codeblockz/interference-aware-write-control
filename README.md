@@ -1,6 +1,6 @@
 # 742 Research Project — Interference-aware write control for bounded-memory recurrent models
 
-Working folder for the EN.705.742 research paper. Lives outside the Obsidian vault so code,
+**Next steps live in `PLAN.md`.** Working folder for the EN.705.742 research paper. Lives outside the Obsidian vault so code,
 data, checkpoints, and a venv can go here without being backed up as notes.
 
 Source of truth for course materials is the vault:
@@ -12,7 +12,7 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 | Date       | Deliverable                 | Status            |
 |------------|-----------------------------|-------------------|
 | 2026-09-13 | RP1 — Pick topic (proposal) | submitted, 100/100 |
-| 2026-10-25 | RP2 — Midpoint check / draft | draft built (`paper/Ellis-RP2.pdf`), awaiting Ryan's review and Canvas upload |
+| 2026-10-25 | RP2 — Midpoint check / draft | draft built (`paper/Ellis-RP2.pdf`, 8 pp) with placeholder Table II and `\pending{}` notes for the final results; awaiting Ryan's review and Canvas upload |
 | 2026-12-13 | RP3 — Final paper           | not started       |
 
 ## Contents
@@ -24,7 +24,7 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
   `backbone.py` (GLA via flash-linear-attention), `memory.py` (slot memory), `controller.py`
   (interference controller + 4 baseline writers), `model.py`, `train.py`, `metrics.py`.
 - `experiments/` — `run.py` (one run -> `results.json`), `aggregate.py` (tables, paired
-  bootstrap), `plot.py` (figures), `configs/` (smoke, sanity, pilot).
+  bootstrap), `plot.py` (figures), `block_diagram.py` (paper Fig. 1), `configs/` (smoke, sanity, pilot).
 - `tests/` — `pytest` (fast) and `pytest -m slow` (GPU learnability regression).
 - `Ellis-RP2-prototype.ipynb` — RP2 companion notebook: sample data, model accounting, gate
   heatmaps, an 800-step training run on the small task, the bootstrap statistics, and the pilot

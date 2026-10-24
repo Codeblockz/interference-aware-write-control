@@ -13,6 +13,8 @@
 \DeclareMathOperator*{\softmax}{softmax}
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator{\onehot}{onehot}
+% Placeholder text for results that arrive in the final paper (RP3).
+\newcommand{\pending}[1]{\textcolor{gray!70!black}{\textit{[Final paper: #1]}}}
 
 \begin{document}
 
@@ -48,10 +50,11 @@ by at least five percentage points of exact recall at 64 associations and 32
 slots, and (H2) whether removing the interference features removes that gain.
 This draft reports the method, a systematic survey of allocation mechanisms, the
 experimental protocol, and a single-seed pilot at a reduced size (24
-associations, 16 slots) that establishes the pipeline, its compute cost, and a
-first comparison: both learned writers reach 52 percent exact recall against 11
-percent for recency, generalize to four times the training length, and the
-interference features add 1.3 points over the ablation. Multi-seed results at
+associations, 16 slots). The pilot is one seed and tests neither hypothesis; it
+establishes the pipeline and its compute cost, and gives a first indication:
+both learned writers reach 52 percent exact recall against 11 percent for
+recency, generalize to four times the training length, and the interference
+features add a small positive amount over the ablation. Multi-seed results at
 the target size follow in the final paper.
 \end{abstract}
 
@@ -132,9 +135,10 @@ Everything is implemented in PyTorch.
 
 This midpoint draft contains the related-work survey
 (Section~\ref{sec:related}), the complete method (Section~\ref{sec:method}),
-the experimental protocol and a single-seed pilot run that validates the
-pipeline (Section~\ref{sec:results}), a discussion of what the pilot does and
-does not show and of the method's limitations (Section~\ref{sec:discussion}),
+the experimental protocol, placeholders for the H1 and H2 results in the
+form they will take, and a single-seed pilot run that validates the pipeline
+(Section~\ref{sec:results}), a discussion of what the pilot does and does not
+show and of the method's limitations (Section~\ref{sec:discussion}),
 and conclusions with the plan for the final paper
 (Section~\ref{sec:conclusion}). Multi-seed results arrive in the final paper.
 
@@ -235,13 +239,17 @@ exact-duplicate sequences removed from validation and test.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/block-diagram-proposal.png}
-\caption{System block diagram. Tokens pass through a gated-linear-attention
-backbone; at each step the backbone output is projected to a query, a key, and
-a value. The memory is read with the query, then the writer (learned controller
-or a fixed baseline rule) produces per-slot gates from the incoming association
-and the memory's state, and the memory is updated. The answer head sees the
-backbone output and the readout.}
+\includegraphics[width=\textwidth]{figures/block-diagram.png}
+\caption{System block diagram at one position $t$. The GLA backbone output
+$h_t$ is projected to a query $q_t$ and value $v_t$; the key $k_t$ is projected
+from the previous position's output $h_{t-1}$ (Section~\ref{sec:arch}). The
+slot memory is read with $q_t$ \emph{before} it is written. The writer compares
+the incoming pair $(k_t, v_t)$ with every slot to form the per-slot features of
+Eq.~\eqref{eq:features} (the H2 ablation zeroes the two interference features)
+and emits the gates $g_{t,j}$ of Eq.~\eqref{eq:gate}; the fixed baselines
+replace this block with their rule (Table~\ref{tab:baselines}). The convex
+update of Eq.~\eqref{eq:write} writes the memory, and the answer head sees
+$[h_t; r_t]$. Loss is taken at answer positions only.}
 \label{fig:block}
 \end{figure*}
 
@@ -366,6 +374,7 @@ answer head.}
 \toprule
 Writer & Gate rule & Models \\
 \midrule
+Interference controller & Eq.~\eqref{eq:gate} on the six features of Eq.~\eqref{eq:features} & proposed \\
 Recency & $g_{t,j} = 1$ for the oldest (or first empty) slot, else 0 & trivial control \\
 Input-only routing & controller with interference features zeroed & Raven~\cite{afzal2026raven} \\
 Residual cache & write to the oldest slot with gate $\sigma(\beta(\lVert r_t(k_t) - v_t\rVert/\sqrt{d} - \tau))$, learned $\tau, \beta$ & HOLA~\cite{cui2026hola} \\
@@ -379,8 +388,10 @@ Position activation & slot $j$ unlocked at position $\lceil jT/S \rceil$; recenc
 
 AdamW ($\beta = (0.9, 0.95)$, weight decay 0.1 on matrices), linear warmup then
 cosine decay, gradient clipping at 1.0, bf16 autocast for the backbone with the
-memory loop in fp32. Hyperparameters (learning rate, controller hidden size,
-gate temperature) are tuned on validation only. State bytes per sequence are
+memory loop in fp32. Hyperparameters (learning rate, controller hidden size) are tuned on
+validation only. The pilot used learning rate $3 \times 10^{-4}$ (chosen over
+$10^{-3}$ on validation, Section~\ref{sec:pilot}), controller hidden size 64,
+batch 64, 200 warmup steps, and 4{,}000 steps. State bytes per sequence are
 reported as backbone recurrent state plus $S(2d + 3)$ floats of memory plus any
 writer statistics; for the two-layer pilot model that is 64~KB backbone, 16~KB
 memory, 0 writer, 80~KB in all, identical across writers.
@@ -421,7 +432,73 @@ gate mass, slot entropy) that show \emph{how} each writer uses its budget.
 hidden size are chosen on validation recall at $N = 64$, $S = 32$ and then
 frozen.
 
-\subsection{Pilot run}
+\subsection{Results for H1 and H2}
+\label{sec:final-results}
+
+This subsection is the placeholder for the full sweep of
+Section~\ref{sec:protocol}; the pilot in Section~\ref{sec:pilot} fills none of
+its cells. Table~\ref{tab:final} is the primary result: exact recall for every
+writer at every budget and load, mean over three seeds with a 95\% bootstrap
+interval over test sequences.
+
+\begin{table*}[t]
+\caption{Placeholder for the primary result. Exact recall (\%) at evaluation
+length 512, mean over three seeds with 95\% bootstrap CI over 10{,}000 test
+sequences; updates and distractors at $N/4$. Bold marks the best writer per
+column. Cells are filled by \texttt{experiments/aggregate.py} once the sweep
+has run.}
+\label{tab:final}
+\centering
+\footnotesize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+ & \multicolumn{3}{c}{$N = 64$ associations} & \multicolumn{3}{c}{$N = 128$ associations} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Writer & $S{=}32$ & $S{=}64$ & $S{=}128$ & $S{=}32$ & $S{=}64$ & $S{=}128$ \\
+\midrule
+Interference controller & -- & -- & -- & -- & -- & -- \\
+No-interference ablation & -- & -- & -- & -- & -- & -- \\
+Recency & -- & -- & -- & -- & -- & -- \\
+Residual cache (HOLA-style) & -- & -- & -- & -- & -- & -- \\
+Position activation (Proteus-style) & -- & -- & -- & -- & -- & -- \\
+\midrule
+H1: controller $-$ best baseline (pp, paired 95\% CI) & -- & -- & -- & -- & -- & -- \\
+H2: controller $-$ ablation (pp, paired 95\% CI) & -- & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\textit{H1 test.} \pending{paired bootstrap of controller minus the
+validation-selected strongest baseline at each $(N, S)$ cell; H1 holds in a cell
+if the lower CI bound exceeds $+5$~pp. Report the cells where it holds, where
+the interval contains zero, and where the controller loses.}
+
+\textit{H2 test.} \pending{paired bootstrap of controller minus the
+no-interference ablation at each cell, with the H1 gain alongside, to show what
+fraction of the gain the interference features account for.}
+
+\textit{Length generalization.} \pending{figure of recall against evaluation
+length 512, 1024, 2048 for every writer at $N = 64$, $S = 32$, in the format of
+Fig.~\ref{fig:pilot} (right).}
+
+\textit{Delay sweep.} \pending{recall against minimum query delay $\delta$ at
+$N = 64$, $S = 32$, which separates load from elapsed context.}
+
+\textit{How each writer spends its budget.} \pending{per-writer admission
+statistics: fraction of key-value pairs, updates, distractors, and filler tokens
+written; mean gate mass; slot entropy. Expected to show whether the pilot's
+50\% plateau is an admission failure, and whether the interference features act
+mainly on updates.}
+
+\textit{Cost.} \pending{parameters, state bytes, training time, and tokens per
+second for every writer, in the format of the cost columns of
+Table~\ref{tab:pilot}.}
+
+\textit{Hyperparameter selection.} \pending{validation recall at $N = 64$,
+$S = 32$ for each writer across the learning-rate grid and controller hidden
+sizes tried, with the selected values.}
+
+\subsection{Pilot: pipeline validation}
 \label{sec:pilot}
 
 \textit{What the pilot is for.} A single seed, run to validate the pipeline end
@@ -511,7 +588,7 @@ bootstrap intervals that are narrower than the markers.}
 \label{fig:pilot}
 \end{figure*}
 
-\textit{Results.} Table~\ref{tab:pilot} and Fig.~\ref{fig:pilot} give the pilot
+\textit{Pilot numbers.} Table~\ref{tab:pilot} and Fig.~\ref{fig:pilot} give the pilot
 numbers. Paired differences on the same 10{,}000 test sequences at $L = 128$:
 controller minus recency $+40.9$~pp, paired 95\% CI $[+40.7, +41.2]$;
 controller minus ablation $+1.3$~pp, paired 95\% CI $[+1.0, +1.5]$ (and the same
@@ -561,17 +638,20 @@ the earlier decision of what to admit at all.
 
 \subsection{Comparison with existing methods}
 
-The ablation is the closest stand-in for Raven's input-dependent
-router~\cite{afzal2026raven}, and the pilot places the interference controller
-slightly above it at equal size. The residual-cache (HOLA~\cite{cui2026hola})
-and position-activation (Proteus~\cite{bayat2026proteus}) writers are
-implemented and unit-tested but not yet trained, so no claim is made against
-them here; H1 is defined against whichever baseline is strongest on validation,
-and that comparison is the central result of the final paper. Relative to the
-fixed-state backbones of Section~\ref{sec:related}, the pilot's
-length-generalization result is consistent with the memory-load account of
-Lee et al.~\cite{lee2026howlinear}: adding filler tokens does not add load, and
-recall does not move.
+\pending{interpretation of Table~\ref{tab:final}. Which of the three cited
+mechanisms (input-dependent routing~\cite{afzal2026raven}, residual-gated
+admission~\cite{cui2026hola}, position scheduling~\cite{bayat2026proteus}) is
+the strongest baseline, at which densities each fails, and whether the
+interference signal's gain concentrates where the capacity analysis of Lee et
+al.~\cite{lee2026howlinear} predicts, at high $N/S$. If H1 fails, which
+baseline matched the controller and what its gate statistics say about why.}
+In this draft only the ablation, the closest stand-in for Raven's router, has
+been trained against the controller, and the pilot places the controller
+slightly above it at equal size; the residual-cache and position-activation
+writers are implemented and unit-tested but not yet trained, so no claim is
+made against them. The pilot's length-generalization result is consistent with
+the memory-load account of Lee et al.: adding filler tokens does not add load,
+and recall does not move.
 
 \subsection{Strengths and limitations}
 
@@ -643,7 +723,9 @@ associations per slot, that the memory generalizes to four times the training
 length, and that the interference signal adds a small positive amount
 ($+1.3$ points) on top of content and novelty.
 
-The final paper will answer whether H1 holds, and at which densities; whether
+\pending{one paragraph stating whether H1 and H2 held, at which densities,
+and the size of the effect; replaces the plan below.} The final paper will
+answer whether H1 holds, and at which densities; whether
 H2 holds, which separates ``a learned router helps'' from ``the interference
 signal helps''; how each writer's gate statistics explain its errors; and where
 a fixed budget fails for every writer. The pilot's 50\% plateau says the next

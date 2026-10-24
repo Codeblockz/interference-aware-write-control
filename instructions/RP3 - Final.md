@@ -34,7 +34,7 @@ The rubric penalizes a missing **block diagram** in two separate criteria. Draw 
 
 ## Approach / plan
 
--
+- See `../PLAN.md` (steps, dependencies, fallback).
 
 ## Working notes
 
