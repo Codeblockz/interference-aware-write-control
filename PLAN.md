@@ -40,6 +40,8 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 - [ ] **6. Run the sweep** (90 runs) plus the delay sweep. One run per
       `python experiments/run.py --config <cfg> --writer <w> --seed <s> --out_dir runs/final/<w>_<cfg>_s<s>`.
       Aggregate with `python experiments/aggregate.py runs/final --pair controller <best>`.
+      Before this, make `plot.py` (right panel) and `aggregate.py` form CIs over seeds properly: they
+      currently average per-seed CI bounds, which is only right for one seed.
 - [ ] **7. Admission logging.** Add per-writer counts of what it wrote: key-value pairs, updates,
       distractors, filler; mean gate mass; slot entropy. Needed to explain the 50% plateau and
       to say where the interference features act. Log in `metrics.py`, surface in aggregate.py.
