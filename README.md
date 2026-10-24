@@ -12,7 +12,7 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 | Date       | Deliverable                 | Status            |
 |------------|-----------------------------|-------------------|
 | 2026-09-13 | RP1 — Pick topic (proposal) | submitted, 100/100 |
-| 2026-10-25 | RP2 — Midpoint check / draft | not started       |
+| 2026-10-25 | RP2 — Midpoint check / draft | draft built (`paper/Ellis-RP2.pdf`), awaiting Ryan's review and Canvas upload |
 | 2026-12-13 | RP3 — Final paper           | not started       |
 
 ## Contents
@@ -26,8 +26,15 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 - `experiments/` — `run.py` (one run -> `results.json`), `aggregate.py` (tables, paired
   bootstrap), `plot.py` (figures), `configs/` (smoke, sanity, pilot).
 - `tests/` — `pytest` (fast) and `pytest -m slow` (GPU learnability regression).
-- `paper/` — `paper.md` master, `refs.bib`, `prisma/search-log.md`, `figures/`,
-  `build.sh` (pandoc -> `Ellis-RP2.docx`).
+- `Ellis-RP2-prototype.ipynb` — RP2 companion notebook: sample data, model accounting, gate
+  heatmaps, an 800-step training run on the small task, the bootstrap statistics, and the pilot
+  table. Re-execute with `jupyter nbconvert --to notebook --execute --inplace Ellis-RP2-prototype.ipynb`
+  (needs the GPU; ~2 min).
+- `paper/` — `paper.tex` master on the course's IEEE conference template (`IEEEtran.cls`
+  copied from `conference-latex-template_10-17-19.zip`), `refs.bib`, `prisma/search-log.md`,
+  `figures/`, `build.sh` (latexmk -> `Ellis-RP2.pdf` plus an Overleaf-ready zip).
+  `paper.md` and the pandoc/.docx files are the superseded first draft; the guide asks for
+  LaTeX on Overleaf, so edit `paper.tex` only.
 - `runs/` — gitignored outputs.
 
 ## How to run

@@ -6,3 +6,6 @@ __pycache__/
 paper/*.docx
 paper/*.pdf
 .venv/
+paper/build/
+paper/*-overleaf.zip
+.playwright-mcp/
