@@ -498,6 +498,33 @@ Table~\ref{tab:pilot}.}
 $S = 32$ for each writer across the learning-rate grid and controller hidden
 sizes tried, with the selected values.}
 
+\begin{table*}[t]
+\caption{Pilot run, seed 0, 24 associations and 16 slots, trained at length
+128. Exact recall (\%) on 10{,}000 test sequences with 95\% bootstrap CI; cost
+columns measured on one RTX 5090.}
+\label{tab:pilot}
+\centering
+\footnotesize
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+Writer & Params & State/seq & Recall $L{=}128$ & Recall $L{=}256$ & Recall $L{=}512$ & Train (min) & Tok/s & GPU (MB) \\
+\midrule
+Interference controller & 2.84M & 80 KB & \textbf{51.9} [51.7, 52.2] & \textbf{52.1} [51.9, 52.3] & \textbf{52.1} [51.9, 52.3] & 16 & 34k & 871 \\
+No-interference ablation & 2.84M & 80 KB & 50.7 [50.5, 50.9] & 50.8 [50.6, 51.0] & 50.9 [50.6, 51.1] & 15 & 36k & 806 \\
+Recency & 2.84M & 80 KB & 11.0 [10.9, 11.1] & 9.6 [9.5, 9.7] & 8.7 [8.6, 8.8] & 7 & 78k & 590 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/pilot.png}
+\caption{Pilot run, seed 0. Left: validation exact recall during training.
+Right: test recall against evaluation length (trained at 128), with 95\%
+bootstrap intervals that are narrower than the markers.}
+\label{fig:pilot}
+\end{figure*}
+
 \subsection{Pilot: pipeline validation}
 \label{sec:pilot}
 
@@ -560,33 +587,6 @@ collapse disappeared. Lowering the learning rate from $10^{-3}$ to $3 \times
 backbone was reduced to two layers because depth only slowed learning at this
 task size.
 \end{enumerate}
-
-\begin{table*}[t]
-\caption{Pilot run, seed 0, 24 associations and 16 slots, trained at length
-128. Exact recall (\%) on 10{,}000 test sequences with 95\% bootstrap CI; cost
-columns measured on one RTX 5090.}
-\label{tab:pilot}
-\centering
-\footnotesize
-\begin{tabular}{@{}lrrrrrrrr@{}}
-\toprule
-Writer & Params & State/seq & Recall $L{=}128$ & Recall $L{=}256$ & Recall $L{=}512$ & Train (min) & Tok/s & GPU (MB) \\
-\midrule
-Interference controller & 2.84M & 80 KB & \textbf{51.9} [51.7, 52.2] & \textbf{52.1} [51.9, 52.3] & \textbf{52.1} [51.9, 52.3] & 16 & 34k & 871 \\
-No-interference ablation & 2.84M & 80 KB & 50.7 [50.5, 50.9] & 50.8 [50.6, 51.0] & 50.9 [50.6, 51.1] & 15 & 36k & 806 \\
-Recency & 2.84M & 80 KB & 11.0 [10.9, 11.1] & 9.6 [9.5, 9.7] & 8.7 [8.6, 8.8] & 7 & 78k & 590 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.9\textwidth]{figures/pilot.png}
-\caption{Pilot run, seed 0. Left: validation exact recall during training.
-Right: test recall against evaluation length (trained at 128), with 95\%
-bootstrap intervals that are narrower than the markers.}
-\label{fig:pilot}
-\end{figure*}
 
 \textit{Pilot numbers.} Table~\ref{tab:pilot} and Fig.~\ref{fig:pilot} give the pilot
 numbers. Paired differences on the same 10{,}000 test sequences at $L = 128$:
