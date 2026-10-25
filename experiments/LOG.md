@@ -35,6 +35,23 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
 
 ---
 
+## 2026-10-25 P9 weight decay — runs/step1/p9_wd0_controller_s0
+
+Hypothesis (from the best-vs-final checkpoint comparison of s1, s2, P8): the post-peak drift is
+weight decay (0.1) shrinking the token embeddings. Between peak and end the embedding norm
+falls 1338 → 1284 on all three drifting runs while backbone (58), head (~300) and the memory
+projections (which grow) do not shrink; at vocab 2048 the embedding norm is unchanged
+(641 → 641) and there is no drift. A row of the embedding only gets gradient when its token
+appears, and at vocab 8192 each token appears 4x less often than at 2048, so decay wins for
+rare rows and the keys lose contrast. This would also explain the vocab cliff (P1 vs P1b).
+Config: target.yaml --set train.weight_decay=0 --set model.fast=true, controller, seed 0,
+vocab 8192.
+Prediction if true: same breakthrough (step 2000-2500), peak ≥ 18 % and **no decline**:
+val recall at 8000 within 2 pp of the peak, embedding norm flat after step 3000. If the
+drift persists with wd = 0, the mechanism is elsewhere (schedule, hard gates).
+Result:
+Decision:
+
 ## 2026-10-25 P1b vocab 4096 — runs/step1/p1b_vocab4096_controller_s0
 
 Hypothesis: the vocab effect seen in P1 is graded (32 % at 2048, 18 % at 8192), so 4096, the
