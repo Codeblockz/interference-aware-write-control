@@ -69,14 +69,16 @@ vocab 8192.
 Prediction if true: same breakthrough (step 2000-2500), peak ≥ 18 % and **no decline**:
 val recall at 8000 within 2 pp of the peak, embedding norm flat after step 3000. If the
 drift persists with wd = 0, the mechanism is elsewhere (schedule, hard gates).
-Result (interim, step 6350 of 8000): same plateau and breakthrough (gate opens at 2000, 15.5 %
-at 2500), then **23.9 / 27.0 / 28.9 / 29.7 / 30.4 / 31.2 %** at 3000-6000 and rising; loss
-6.44 → 5.68, gnorm 2-9 (healthy), write_frac 0.06-0.07 with the P1-like pattern. Every
-vocab-8192 run with wd 0.1 had peaked at 18-19 % by step 3000 and was at 13-14 % by 5000.
-Decision (interim): **prediction held.** Weight decay on the embeddings is the drift, and it
-also explains the vocab cliff (P1 vs P1b: the 2048-vocab embedding rows get gradient often
-enough to beat the decay). Next: P9b (decay on matrices, none on the embedding) to choose the
-cleaner setting, then the confirm seeds with whichever wins on validation.
+Result: same plateau and breakthrough (gate opens at 2000, 15.5 % at 2500), then 23.9 / 27.0 /
+28.9 / 29.7 / 30.4 / 31.2 / 31.5 % at 3000-7000 and **31.5 % at 8000, no decline** (peak = end).
+Loss 6.44 → 5.6, gnorm 2-9, write_frac 0.06-0.07 with the P1-like pattern (writes on pairs,
+almost none elsewhere). **Test 31.6 / 31.5 / 31.4 % at L = 512 / 1024 / 2048**: flat at 4x the
+training length. 40 min on the fast path (shared GPU). Every vocab-8192 run with wd 0.1 had
+peaked at 18-19 % by step 3000 and ended at 11-14 %.
+Decision: **prediction held.** Weight decay on the embeddings is the drift, and it also explains
+the vocab cliff (P1 vs P1b: the 2048-vocab embedding rows get gradient often enough to beat
+the decay). P9b decides between wd 0 everywhere and wd 0.1 except the embedding; C2 confirms
+across seeds. This run is the candidate "controller at target" reference until C2 is in.
 
 ## 2026-10-25 P9b decay except embeddings — runs/step1/p9b_noembdecay_controller_s0
 
@@ -93,7 +95,7 @@ Decision:
 Hypothesis: the P9 result (no decline, ~30 %+) holds across seeds.
 Config: target.yaml --set train.weight_decay=0 --set model.fast=true, controller, seeds 1, 2.
 Prediction: both > 25 % at 8000 and within 2 pp of their peak. (If P9b wins on validation,
-rerun the seeds with P9b's setting instead.) s1 launched 19:05; s2 after P9 ends.
+rerun the seeds with P9b's setting instead.) s1 launched 19:05, s2 19:13.
 Result:
 Decision:
 
