@@ -209,7 +209,7 @@ def train(model: RecallModel, train_split: MQARBatch, val_split: MQARBatch, cfg:
         }
 
     fwd = None
-    if model.cfg.fast and cfg.cuda_graph and device.type == "cuda" and not model.writer.uses_pos:
+    if model.cfg.fast and cfg.cuda_graph and device.type == "cuda":
         sample = train_split.inputs[: cfg.batch_size].to(device)
         tc = time.perf_counter()
         fwd = graphed_forward(model, sample, cfg.bf16)

@@ -41,7 +41,7 @@ class Writer(nn.Module):
 
     ctx_dim: int = 0  # >0 for writers that take a content projection
 
-    uses_pos: bool = False  # True if the gate depends on ``pos``; such writers run on the eager loop only
+    uses_pos: bool = False  # True if the gate depends on the position; the compiled path then passes a per-step slot mask as ``pos``
 
     def forward(self, mem: SlotMemory, key: Tensor, value: Tensor, pos: int, seq_len, ctx: Tensor | None = None) -> Tensor:
         """``seq_len`` is the int T on the eager path, or a 0-d tensor holding 1/T on the
@@ -132,10 +132,21 @@ class PositionWriter(Writer):
 
     uses_pos = True
 
+    @staticmethod
+    def unlocked_mask(seq_len: int, slots: int, device) -> Tensor:
+        """(T, S) bool: slot j is unlocked at position t iff j < (t + 1) * S // T + 1 (capped at S)."""
+        t = torch.arange(seq_len, device=device)
+        n = ((t + 1) * slots // seq_len + 1).clamp(1, slots)  # (T,)
+        return torch.arange(slots, device=device)[None, :] < n[:, None]
+
     def forward(self, mem, key, value, pos, seq_len, ctx=None):
-        unlocked = int(min(mem.S, max(1, (pos + 1) * mem.S // seq_len + 1)))
         score = mem.age + (1 - mem.filled) * 1e6
-        score[:, unlocked:] = -1e9
+        if isinstance(pos, Tensor):  # compiled path: pos is the (S,) unlocked mask for this step
+            score = score.masked_fill(~pos, -1e9)
+        else:
+            unlocked = int(min(mem.S, max(1, (pos + 1) * mem.S // seq_len + 1)))
+            score = score.clone()
+            score[:, unlocked:] = -1e9
         idx = score.argmax(dim=-1)
         return torch.nn.functional.one_hot(idx, mem.S).to(key.dtype)
 

@@ -85,7 +85,7 @@ def test_controller_learns_small_task():
 
 
 @cuda
-@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "residual"])
+@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "residual", "position"])
 def test_fast_path_matches_eager(writer):
     """model.fast (compiled functional memory step) must give the same logits, gates and gradients."""
     torch.manual_seed(0)
@@ -107,11 +107,13 @@ def test_fast_path_matches_eager(writer):
 
 
 @cuda
-def test_position_writer_ignores_fast_flag():
-    m = RecallModel(ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32, writer="position", fast=True)).cuda()
-    x = torch.randint(1, 512, (2, 16), device="cuda")
-    logits, info = m(x, return_gates=True)
-    assert logits.shape == (2, 16, 512) and info["gates"].shape == (2, 16, 4)
+def test_position_unlocked_mask_matches_int_rule():
+    from bmem.controller import PositionWriter
+    T, S = 37, 8
+    m = PositionWriter.unlocked_mask(T, S, "cuda").cpu()
+    for t in range(T):
+        unlocked = int(min(S, max(1, (t + 1) * S // T + 1)))
+        assert m[t].sum().item() == unlocked and bool(m[t, :unlocked].all()) and not bool(m[t, unlocked:].any())
 
 
 @cuda

@@ -43,7 +43,7 @@ def main():
     model = RecallModel(mcfg).cuda().train()
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4)
     x, y = batch.inputs.cuda(), batch.labels.cuda()
-    fwd = graphed_forward(model, x) if a.fast and not a.no_graph and not model.writer.uses_pos else None
+    fwd = graphed_forward(model, x) if a.fast and not a.no_graph else None
     torch.cuda.reset_peak_memory_stats()
 
     def step():

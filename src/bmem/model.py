@@ -55,15 +55,15 @@ class RecallModel(nn.Module):
 
         self._cstep = None
 
-    def memory_step(self, keys, values, age, usage, filled, q, k, v, ctx, inv_T):
+    def memory_step(self, keys, values, age, usage, filled, q, k, v, ctx, inv_T, pos):
         """One timestep as a pure function of the memory tensors: read with q, gate with
-        the writer, write (k, v). Returns (read, gate, new memory tensors). Writers that
-        depend on the position (PositionWriter) are not supported here."""
+        the writer, write (k, v). Returns (read, gate, new memory tensors). ``pos`` is 0 for
+        writers that ignore the position and the (S,) unlocked-slot mask for PositionWriter."""
         mem = SlotMemory.__new__(SlotMemory)
         mem.S, mem.d = keys.shape[1], keys.shape[2]
         mem.keys, mem.values, mem.age, mem.usage, mem.filled = keys, values, age, usage, filled
         r = mem.read(q)
-        g = self.writer(mem, k, v, 0, inv_T, ctx)
+        g = self.writer(mem, k, v, pos, inv_T, ctx)
         mem.write(g, k, v)
         return r, g, mem.keys, mem.values, mem.age, mem.usage, mem.filled
 
@@ -85,12 +85,14 @@ class RecallModel(nn.Module):
         ctx = self.to_ctx(h).float() if self.to_ctx is not None else None
         mem = SlotMemory(B, self.cfg.slots, self.cfg.mem_dim, tokens.device)
         reads, gates = [], []
-        if self.cfg.fast and not self.writer.uses_pos:
+        if self.cfg.fast:
             step = self._compiled_step()
             inv_T = torch.full((), 1.0 / T, device=tokens.device)
+            masks = self.writer.unlocked_mask(T, self.cfg.slots, tokens.device) if self.writer.uses_pos else None
             st = (mem.keys, mem.values, mem.age, mem.usage, mem.filled)
             for t in range(T):
-                r, g, *st = step(*st, q[:, t], k[:, t], v[:, t], None if ctx is None else ctx[:, t], inv_T)
+                r, g, *st = step(*st, q[:, t], k[:, t], v[:, t], None if ctx is None else ctx[:, t], inv_T,
+                                 masks[t] if masks is not None else 0)
                 reads.append(r)
                 if return_gates:
                     gates.append(g)
