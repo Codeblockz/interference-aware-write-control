@@ -96,6 +96,7 @@ def main():
     ap.add_argument("--tag", default="", help="free text recorded in results.json (what this run probes)")
     ap.add_argument("--resume", action="store_true", help="continue from out_dir/ckpt.pt")
     ap.add_argument("--init_from", default=None, help="state_dict or ckpt to initialise weights from (curriculum)")
+    ap.add_argument("--eval_only", action="store_true", help="skip training: load out_dir/ckpt.pt and run the test evals")
     args = ap.parse_args()
 
     cfg = apply_overrides(yaml.safe_load(Path(args.config).read_text()), args.set)
@@ -106,7 +107,7 @@ def main():
         cfg["train"]["init_from"] = args.init_from
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    logf = (out / "log.txt").open("a" if args.resume else "w")
+    logf = (out / "log.txt").open("a" if (args.resume or args.eval_only) else "w")
 
     def log(msg):
         print(msg)
@@ -114,8 +115,8 @@ def main():
         logf.flush()
 
     started = datetime.now().isoformat(timespec="seconds")
-    if args.resume and (out / "results.json").exists():  # keep the original start time across resumes
-        started = json.loads((out / "results.json").read_text()).get("started_at", started)
+    prior = json.loads((out / "results.json").read_text()) if (args.resume or args.eval_only) and (out / "results.json").exists() else {}
+    started = prior.get("started_at", started)  # keep the original start time across resumes
     meta = {
         "writer": cfg["model"]["writer"], "seed": args.seed, "tag": args.tag, "config": cfg,
         "config_file": args.config, "overrides": args.set, "git": git_info(Path(__file__).resolve().parents[1]),
@@ -147,10 +148,18 @@ def main():
         tmp.replace(out / "results.json")
         return results
 
-    if not args.resume:  # so progress.py sees the tag and schedule before the first eval
-        write_results({"history": [], "train_seconds": 0.0, "train_tokens_per_s": 0.0, "peak_mem_mb": 0.0})
-    train_stats = train(model, splits["train"], splits["val"], tcfg, device, log=log,
-                        out_dir=out, resume=args.resume, on_eval=write_results)
+    if args.eval_only:
+        ck = torch.load(out / "ckpt.pt", map_location="cpu", weights_only=False)
+        model.load_state_dict(ck["model"])
+        model.to(device)
+        train_stats = {k: prior.get(k) for k in ("history", "train_seconds", "train_tokens_per_s", "peak_mem_mb")}
+        train_stats["history"] = train_stats["history"] or ck["history"]
+        log(f"eval_only: loaded {out/'ckpt.pt'} at step {ck['step']}")
+    else:
+        if not args.resume:  # so progress.py sees the tag and schedule before the first eval
+            write_results({"history": [], "train_seconds": 0.0, "train_tokens_per_s": 0.0, "peak_mem_mb": 0.0})
+        train_stats = train(model, splits["train"], splits["val"], tcfg, device, log=log,
+                            out_dir=out, resume=args.resume, on_eval=write_results)
 
     # Test at the training length and at each extra evaluation length.
     evals = {}
@@ -159,7 +168,8 @@ def main():
         ecfg = MQARConfig(**{**cfg["data"], "seq_len": L})
         test = splits["test"] if L == data_cfg.seq_len else make_splits(ecfg, 1, 1, cfg["n_test"], seed=args.seed)["test"]
         t0 = time.perf_counter()
-        ev = evaluate(model, test, device, bf16=tcfg.bf16)
+        # Logits are (B, L, vocab); keep B*L fixed so long-length evals do not blow the memory.
+        ev = evaluate(model, test, device, batch_size=max(8, 128 * data_cfg.seq_len // L), bf16=tcfg.bf16)
         per_ex = ev.pop("per_example")
         np.save(out / f"per_example_L{L}.npy", per_ex)
         ev["wall_s"] = time.perf_counter() - t0
