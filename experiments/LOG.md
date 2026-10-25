@@ -21,19 +21,15 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
 
 ## Status
 
-- 2026-10-25 19:25: **Step 1 answered; drift explained and fixed.** Target (64+16+16 / 32 slots /
-  len 512 / vocab 8192, 2 layers, lr 3e-4) learns on 3/3 seeds; recency at chance on 3/3.
-  With wd 0.1 the controller peaks at 18-19 % and decays to 11-14 % (embedding rows shrink);
-  with wd 0 (P9) it reaches **31.5 % val, test 31.6 / 31.5 / 31.4 % at L = 512 / 1024 / 2048**,
-  no decline. Running: P9b (wd 0.1 except embedding) to pick the setting; C2 seeds 1, 2 at wd 0.
-  Refuted today: write-gate cold start (P8); graded vocab effect (P1b). Fast path 3.4x; position
-  writer now on it too. Fallback date 2026-11-15 no longer needed; keep as the hard stop.
+- 2026-10-25 19:50: Step 1 answered (target learns, 3/3 seeds; recency at chance 3/3). The
+  post-peak drift is **not** weight decay (P9b, C2 s1, C2 s2 all drift at wd 0 / no-embed-decay;
+  P9 was 1 of 3). The two non-drifting runs share one gate policy (write every pair, no filler);
+  the drifting ones do not. The target cell is capacity-bound: ideal pair-only writer = 43 %
+  (see "Finding: capacity ceiling"). **Protocol error found: N=128 needs L ≥ 640.** Running:
+  P10 soft gates, P11 lr 1e-4 (end ~20:15). Fast path 3.4x; position writer on it.
+  GPU time today ≈ 9.5 h across 16 runs.
 
-**Time ledger (training minutes, from results.json; test evals and the eager eval re-runs
-are extra). Session: 15:48-19:25 on 2026-10-25, one RTX 5090 shared by 2-3 runs at a time.**
-
-| run | mode | train min |
-|---|---|---|
+---|---|---|
 | P0 controller s0 / recency s0 | eager | 105 / 27 |
 | C1 controller s1 / s2 | fast | 33 / 30 |
 | C1b recency s1 / s2 | fast | 22 / 22 |
@@ -51,6 +47,41 @@ controller's features, gates, or the task. Candidate protocol change pending P9b
 decay setting for the sweep.
 
 ---
+
+## Finding: capacity ceiling of the task (2026-10-25, prompted by Ryan: "it might be a data issue")
+
+Simulated the best any writer can do that cannot see the future: admit every pair at its
+value position, never write filler, overwrite a key in place on update, evict FIFO when full
+(script in this entry's commit; 1500 sequences, seed 0). Exact recall:
+
+| cell | FIFO pair-only | + perfect distractor rejection |
+|---|---|---|
+| N=64, S=32 (the target) | **0.434** | 0.500 |
+| N=64, S=64 | 0.811 | 1.000 |
+| N=64, S=128 | 1.000 | 1.000 |
+| N=128, S=32 (needs L ≥ 640; at L=1024) | 0.244 | 0.250 |
+| N=128, S=64 | 0.434 | 0.500 |
+| N=128, S=128 | 0.811 | 1.000 |
+
+Implications:
+1. **The target is capacity-bound.** 96 pairs for 32 slots: a perfect pair-only recency policy
+   gets 43 %, and perfect knowledge of which pairs will be queried adds only 7 pp. Our best
+   runs (32 %) are at 3/4 of the ceiling; the drifted runs (12-13 %) are far below it. The
+   H1 margin (> 5 pp over the strongest baseline) has to come out of that 7 pp window at
+   S=32, which is unrealistic; the interference features can matter at S=64 (81 → 100 %) and
+   the research question is stated per density, so Table II still answers it.
+2. **Protocol error:** the N=128 cells cannot be generated at train length 512
+   (`MQARConfig.validate`: 384 context tokens + 128 queries > 512). The paper's Table II and
+   PLAN step 6 must use L=1024 for N=128 (or drop N=128). Decide before the sweep.
+3. The "drift" is the run leaving the pair-only policy. Whether a run finds it looks
+   stochastic at lr 3e-4 (1 of 3 at wd 0; P1 at vocab 2048 found it). P10 (soft gates) and
+   P11 (lr 1e-4) are the two controlled tests still running; if neither makes the good basin
+   reliable, the protocol fallback is best-validation checkpoint selection plus 3 seeds, which
+   reports the policy a run reached rather than where it ended.
+4. The naive recency baseline writes at every position (write_frac 1.0), which is why it sits
+   at chance: it holds the last 32 *tokens*. A pair-only recency baseline is the fair "no
+   learning" comparison and is ~40 lines (gate on value positions); worth adding as the
+   strongest non-learned baseline since it is also the 43 % ceiling policy.
 
 ## Reference: Zoology's MQAR training recipe (checked 2026-10-25)
 
@@ -127,12 +158,9 @@ other matrices (the usual practice) gives the P9 result without giving up regula
 Config: target.yaml --set train.decay_embeddings=false --set model.fast=true, controller, seed 0.
 Prediction if true: within 2 pp of P9 at every eval from 3000 on and no decline. If it drifts,
 decay on the memory projections or head also matters and wd 0 is the setting.
-Result (interim, step 4500): 15.8 / 18.3 / 17.7 / 13.8 / 12.6 % at 2500-4500: **drifts like
-wd 0.1**. Embedding norm flat (1447 → 1447), so the embedding is not what decays into the drift.
-Decision (interim): **prediction failed.** Together with C2 s1 (below) this refutes "weight decay
-on the embeddings is the drift". The P9 run (wd 0, seed 0) did not drift, but that is now 1 of 2
-wd-0 runs; the embedding-norm correlation in the earlier checkpoints was a side effect of
-wd 0.1, not the cause. Mechanism still open. Let it finish for the record.
+Result: 15.8 / 18.3 / 17.7 / 13.8 / 12.6 % at 2500-4500, **12.2 % at 8000**: drifts like wd 0.1.
+Embedding norm flat (1447 → 1447).
+Decision: **prediction failed.** The embedding is not what decays into the drift.
 
 ## 2026-10-25 C2 confirm seeds, wd 0 — runs/step1/c2_wd0_controller_s{1,2}
 
@@ -140,16 +168,13 @@ Hypothesis: the P9 result (no decline, ~30 %+) holds across seeds.
 Config: target.yaml --set train.weight_decay=0 --set model.fast=true, controller, seeds 1, 2.
 Prediction: both > 25 % at 8000 and within 2 pp of their peak. (If P9b wins on validation,
 rerun the seeds with P9b's setting instead.) s1 launched 19:05, s2 19:13.
-Result (interim): s1 at wd 0: 16.9 / 18.4 / 17.4 / **13.8 %** at 2500-4000, i.e. the usual
-peak-then-drift, with embedding norm flat (1448 → 1448) and head/projection norms growing
-slightly. s2 at step 1500 (plateau).
-Decision (interim): **prediction failed on s1.** Weight decay is not the mechanism (or not
-sufficient). What the drifting runs share: the *training* loss rises after the peak (6.7 → 7.4
-in P0) while gnorm stays small, i.e. the optimizer walks uphill on the true loss. That is the
-signature of a biased gradient. The controller's straight-through hard gates
-(`one_hot + soft - soft.detach()`) give exactly that: the forward uses the one-hot, the
-backward the softmax. Next probes P10 (soft gates) and P11 (lr 1e-4 after the same warmup)
-at wd 0.1, seed 0, so they compare to P0/C1 directly.
+Result: s1 16.9 / 18.4 / 17.4 / 13.8 → **13.0 % at 8000**; s2 → **13.4 % at 8000**. Both the usual
+peak-then-drift with embedding norms flat. P9 (31.5 %, no drift) is therefore 1 of 3 wd-0 runs.
+Decision: **prediction failed.** Weight decay is not the mechanism; P9 landed in the good
+basin by chance. What separates the two outcomes (see "Capacity ceiling" below) is the gate
+policy the run settles into: the two non-drifting runs (P9, P1) write ~1/3 of every pair and
+**zero** filler (q/d/u/o 0.33/0.34/0.34/0.00); every drifting run writes fewer pairs and 7-9 %
+of filler positions (0.22/0.23/0.21/0.07). The drift is a worse basin, not a slow decay.
 
 ## 2026-10-25 P1b vocab 4096 — runs/step1/p1b_vocab4096_controller_s0
 

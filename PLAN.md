@@ -51,7 +51,11 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 - [ ] **5. Hyperparameter selection** for every writer: lr grid {1e-3, 3e-4, 1e-4}, controller
       hidden {32, 64, 128}, at N=64, S=32 on validation. Record the table for the
       "Hyperparameter selection" placeholder.
-- [ ] **6. Run the sweep** (90 runs) plus the delay sweep. One run per
+- [ ] **6. Run the sweep** (90 runs) plus the delay sweep. **N=128 cannot be generated at train
+      length 512** (384 context tokens + 128 queries > 512): use L=1024 for the N=128 column
+      (test at 1024 / 2048 / 4096) or drop it; fix the paper's protocol text to match. The
+      N=64 / S=32 cell is capacity-bound (ideal pair-only writer 43 %, see LOG "capacity
+      ceiling"); the interference margin can only show at S ≥ 64. One run per
       `python experiments/run.py --config <cfg> --writer <w> --seed <s> --out_dir runs/final/<w>_<cfg>_s<s>`.
       Aggregate with `python experiments/aggregate.py runs/final --pair controller <best>`.
       Before this, make `plot.py` (right panel) and `aggregate.py` form CIs over seeds properly: they
