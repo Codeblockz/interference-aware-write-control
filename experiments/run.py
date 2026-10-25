@@ -133,7 +133,8 @@ def main():
     splits = make_splits(data_cfg, cfg["n_train"], cfg["n_val"], cfg["n_test"], seed=args.seed)
     log(f"data: {data_cfg} train={len(splits['train'])} val={len(splits['val'])} test={len(splits['test'])}")
 
-    mcfg = ModelConfig(**{**cfg["model"], "vocab_size": data_cfg.vocab_size})
+    mcfg = ModelConfig(**{**cfg["model"], "vocab_size": data_cfg.vocab_size, "pair_block": data_cfg.context_tokens()})
+    cfg["model"]["pair_block"] = data_cfg.context_tokens()
     model = RecallModel(mcfg)
     log(f"model: {mcfg}\nparams: {model.n_params()}\nstate_bytes: {model.state_bytes()}")
     meta.update(params=model.n_params(), state_bytes=model.state_bytes())

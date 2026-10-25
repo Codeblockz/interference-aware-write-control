@@ -14,7 +14,7 @@ import torch
 from torch import Tensor, nn
 
 from bmem.backbone import GLABackbone
-from bmem.controller import WRITERS, Writer
+from bmem.controller import WRITERS, PairRecencyWriter, Writer
 from bmem.memory import SlotMemory
 
 
@@ -32,6 +32,7 @@ class ModelConfig:
     fast: bool = False  # torch.compile the per-timestep memory step (same numerics; see memory_step)
     write_bias_init: float = 0.0  # controller's scalar write-gate bias at init (0 -> sigmoid 0.5; 2.2 -> 0.9)
     hard_gates: bool = True  # controller: straight-through one-hot slot choice (False: soft softmax gates)
+    pair_block: int = 0  # pair_recency writer: tokens in the context + update block (MQARConfig.context_tokens())
 
 
 class RecallModel(nn.Module):
@@ -43,6 +44,9 @@ class RecallModel(nn.Module):
         self.to_k = nn.Linear(cfg.d_model, cfg.mem_dim)
         self.to_v = nn.Linear(cfg.d_model, cfg.mem_dim)
         self.writer: Writer = WRITERS[cfg.writer]()
+        if cfg.writer == "pair_recency":
+            assert cfg.pair_block > 0, "pair_recency needs ModelConfig.pair_block (= MQARConfig.context_tokens())"
+            self.writer = PairRecencyWriter(cfg.pair_block)
         if cfg.writer in ("controller", "no_interference"):
             self.writer = WRITERS[cfg.writer]()
             self.writer.slot_mlp[0] = nn.Linear(self.writer.n_feat, cfg.controller_hidden)
@@ -90,7 +94,7 @@ class RecallModel(nn.Module):
         if self.cfg.fast:
             step = self._compiled_step()
             inv_T = torch.full((), 1.0 / T, device=tokens.device)
-            masks = self.writer.unlocked_mask(T, self.cfg.slots, tokens.device) if self.writer.uses_pos else None
+            masks = self.writer.step_inputs(T, self.cfg.slots, tokens.device) if self.writer.uses_pos else None
             st = (mem.keys, mem.values, mem.age, mem.usage, mem.filled)
             for t in range(T):
                 r, g, *st = step(*st, q[:, t], k[:, t], v[:, t], None if ctx is None else ctx[:, t], inv_T,

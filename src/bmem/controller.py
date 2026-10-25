@@ -41,7 +41,11 @@ class Writer(nn.Module):
 
     ctx_dim: int = 0  # >0 for writers that take a content projection
 
-    uses_pos: bool = False  # True if the gate depends on the position; the compiled path then passes a per-step slot mask as ``pos``
+    uses_pos: bool = False  # True if the gate depends on the position; the compiled path then passes step_inputs(...)[t] as ``pos``
+
+    def step_inputs(self, seq_len: int, slots: int, device):
+        """For ``uses_pos`` writers: a (T, ...) tensor whose row t is passed as ``pos`` on the compiled path."""
+        return None
 
     def forward(self, mem: SlotMemory, key: Tensor, value: Tensor, pos: int, seq_len, ctx: Tensor | None = None) -> Tensor:
         """``seq_len`` is the int T on the eager path, or a 0-d tensor holding 1/T on the
@@ -105,6 +109,30 @@ class RecencyWriter(Writer):
         return torch.nn.functional.one_hot(idx, mem.S).to(key.dtype)
 
 
+class PairRecencyWriter(Writer):
+    """Structure-aware recency: writes only at the value position of a pair (odd positions
+    inside the context + update block of length ``pair_block``), into the oldest slot. The
+    non-learned upper reference: it is the FIFO pair-only policy whose recall ceiling
+    `experiments/analysis/ceiling.py` computes. Uses the generator's layout, so it is an
+    oracle-structure baseline, not a model that could be deployed on unknown data."""
+
+    uses_pos = True
+
+    def __init__(self, pair_block: int = 0):
+        super().__init__()
+        self.pair_block = pair_block
+
+    def step_inputs(self, seq_len, slots, device):
+        t = torch.arange(seq_len, device=device)
+        return ((t % 2 == 1) & (t < self.pair_block)).float()  # (T,)
+
+    def forward(self, mem, key, value, pos, seq_len, ctx=None):
+        w = pos if isinstance(pos, Tensor) else float(pos % 2 == 1 and pos < self.pair_block)
+        score = mem.age + (1 - mem.filled) * 1e6
+        idx = score.argmax(dim=-1)
+        return torch.nn.functional.one_hot(idx, mem.S).to(key.dtype) * w
+
+
 class ResidualCacheWriter(Writer):
     """HOLA-style: write only when the memory's current readout for this key disagrees
     with the incoming value (large residual), into the oldest slot. The threshold is
@@ -139,6 +167,9 @@ class PositionWriter(Writer):
         n = ((t + 1) * slots // seq_len + 1).clamp(1, slots)  # (T,)
         return torch.arange(slots, device=device)[None, :] < n[:, None]
 
+    def step_inputs(self, seq_len, slots, device):
+        return self.unlocked_mask(seq_len, slots, device)
+
     def forward(self, mem, key, value, pos, seq_len, ctx=None):
         score = mem.age + (1 - mem.filled) * 1e6
         if isinstance(pos, Tensor):  # compiled path: pos is the (S,) unlocked mask for this step
@@ -155,6 +186,7 @@ WRITERS = {
     "controller": lambda: InterferenceController(interference=True),
     "no_interference": lambda: InterferenceController(interference=False),
     "recency": RecencyWriter,
+    "pair_recency": PairRecencyWriter,  # needs ModelConfig.pair_block; RecallModel sets it
     "residual": ResidualCacheWriter,
     "position": PositionWriter,
 }

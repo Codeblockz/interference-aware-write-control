@@ -23,6 +23,7 @@ SERIES = {  # fixed order, never cycled
     "controller": ("#2a78d6", "Interference controller"),
     "no_interference": ("#eb6834", "No-interference ablation"),
     "recency": ("#1baf7a", "Recency"),
+    "pair_recency": ("#0e7a52", "Pair-only recency"),
     "residual": ("#eda100", "Residual cache"),
     "position": ("#e87ba4", "Position activation"),
 }

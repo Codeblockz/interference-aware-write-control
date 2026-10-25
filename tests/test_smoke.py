@@ -85,11 +85,11 @@ def test_controller_learns_small_task():
 
 
 @cuda
-@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "residual", "position"])
+@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "pair_recency", "residual", "position"])
 def test_fast_path_matches_eager(writer):
     """model.fast (compiled functional memory step) must give the same logits, gates and gradients."""
     torch.manual_seed(0)
-    cfg = ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32, writer=writer)
+    cfg = ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32, writer=writer, pair_block=12)
     m = RecallModel(cfg).cuda()
     x = torch.randint(1, 512, (3, 24), device="cuda")
     logits_e, info_e = m(x, return_gates=True)
@@ -143,3 +143,16 @@ def test_hard_gates_flag_switches_to_soft():
     assert hard.writer.hard and not soft.writer.hard
     assert ((gh > 0).sum(-1) <= 1).all()  # one slot per step (times the scalar write gate)
     assert ((gs > 1e-6).sum(-1) > 1).any()  # soft spreads mass over slots
+
+
+@cuda
+def test_pair_recency_writes_only_at_pair_values():
+    cfg = MQARConfig(vocab_size=256, seq_len=32, num_kv_pairs=4, num_updates=1, num_distractors=1)
+    b = generate_mqar(cfg, 3, seed=0)
+    m = RecallModel(ModelConfig(vocab_size=256, d_model=32, n_layers=1, n_heads=2, slots=4, mem_dim=16,
+                                writer="pair_recency", pair_block=cfg.context_tokens())).cuda()
+    g = m(b.inputs.cuda(), return_gates=True)[1]["gates"]  # (B, T, S)
+    mass = g.sum(-1)
+    t = torch.arange(32, device="cuda")
+    expect = ((t % 2 == 1) & (t < cfg.context_tokens())).float()
+    assert torch.equal(mass[0], expect) and torch.equal(mass[2], expect)
