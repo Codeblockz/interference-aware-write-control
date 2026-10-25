@@ -69,6 +69,31 @@ vocab 8192.
 Prediction if true: same breakthrough (step 2000-2500), peak ≥ 18 % and **no decline**:
 val recall at 8000 within 2 pp of the peak, embedding norm flat after step 3000. If the
 drift persists with wd = 0, the mechanism is elsewhere (schedule, hard gates).
+Result (interim, step 6350 of 8000): same plateau and breakthrough (gate opens at 2000, 15.5 %
+at 2500), then **23.9 / 27.0 / 28.9 / 29.7 / 30.4 / 31.2 %** at 3000-6000 and rising; loss
+6.44 → 5.68, gnorm 2-9 (healthy), write_frac 0.06-0.07 with the P1-like pattern. Every
+vocab-8192 run with wd 0.1 had peaked at 18-19 % by step 3000 and was at 13-14 % by 5000.
+Decision (interim): **prediction held.** Weight decay on the embeddings is the drift, and it
+also explains the vocab cliff (P1 vs P1b: the 2048-vocab embedding rows get gradient often
+enough to beat the decay). Next: P9b (decay on matrices, none on the embedding) to choose the
+cleaner setting, then the confirm seeds with whichever wins on validation.
+
+## 2026-10-25 P9b decay except embeddings — runs/step1/p9b_noembdecay_controller_s0
+
+Hypothesis: the drift comes only from decaying the embedding rows; keeping wd 0.1 on the
+other matrices (the usual practice) gives the P9 result without giving up regularisation.
+Config: target.yaml --set train.decay_embeddings=false --set model.fast=true, controller, seed 0.
+Prediction if true: within 2 pp of P9 at every eval from 3000 on and no decline. If it drifts,
+decay on the memory projections or head also matters and wd 0 is the setting.
+Result:
+Decision:
+
+## 2026-10-25 C2 confirm seeds, wd 0 — runs/step1/c2_wd0_controller_s{1,2}
+
+Hypothesis: the P9 result (no decline, ~30 %+) holds across seeds.
+Config: target.yaml --set train.weight_decay=0 --set model.fast=true, controller, seeds 1, 2.
+Prediction: both > 25 % at 8000 and within 2 pp of their peak. (If P9b wins on validation,
+rerun the seeds with P9b's setting instead.) s1 launched 19:05; s2 after P9 ends.
 Result:
 Decision:
 
@@ -79,16 +104,21 @@ smallest vocab that allows the protocol's L=2048 test, lands in between and with
 Config: target.yaml --set data.vocab_size=4096 --set model.fast=true, controller, seed 0.
 Prediction if true: val recall 22-30 % at 8000 and within 3 pp of its peak (no drift). If it
 lands at 17-19 % with drift, the effect is a cliff between 2048 and 4096.
-Result:
-Decision:
+Result: 16.5 / 18.2 / 17.9 % at 2500 / 3000 / 3500, then 14.3 → **12.2 % at 8000**; test
+12.2 / 9.5 / 7.9 % at L = 512 / 1024 / 2048. Identical shape to the vocab-8192 runs.
+Decision: **prediction failed**: the vocab effect is a cliff between 2048 and 4096, not graded.
+Explained by P9: at 4096 and 8192 the embedding rows are updated too rarely to resist weight
+decay 0.1. Keep vocab 8192 (the proposal's setting) and fix the decay instead.
 
 ## 2026-10-25 C1b recency seeds — runs/step1/c1_target_recency_s{1,2}
 
 Hypothesis: recency at the target is at chance for every seed (completes the confirm stage).
 Config: target.yaml --set model.fast=true, recency, seeds 1 and 2.
 Prediction: val recall < 0.5 % at 8000 for both.
-Result:
-Decision:
+Result: s1 0.03 %, s2 0.02 % val at 8000; test 0.02-0.03 % at every length. write_frac 1.0
+(writes every step), slot entropy 5.0.
+Decision: prediction held; recency is at chance at the target for seeds 0, 1, 2. Confirm stage
+for the baseline done.
 
 ## 2026-10-25 P8 write-gate init — runs/step1/p8_wbias2.2_controller_s0
 
