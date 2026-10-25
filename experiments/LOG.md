@@ -35,6 +35,26 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
 
 ---
 
+## Reference: Zoology's MQAR training recipe (checked 2026-10-25)
+
+From arXiv:2312.04927 (Appendix, "training protocol") and github.com/HazyResearch/zoology
+(`zoology/train.py`, `zoology/config.py`, `experiments/mqar_example_configs/original_mqar_configs.py`):
+- Vocab 8192; two-layer models; 100k train / 3k test examples; data order fixed.
+- AdamW, **weight decay 0.1 on every parameter including embeddings** (no param groups),
+  linear warmup 10 %, cosine decay per epoch, **lr swept over logspace(-4, -2, 4)** per
+  architecture, **64 epochs** (32 in the example config); batch 8-64 depending on length/width.
+  64 epochs x 100k examples = 6.4M examples ≈ 12x our 8000 x 64 = 512k.
+- They **report the maximum test accuracy** over the sweep and **early-stop at 99 % validation
+  accuracy**, so a post-peak decline would never appear in their numbers. No best-checkpoint
+  saving.
+- Their kv counts at len 256 go up to 64 pairs (density 50 %); ours is 64 + 16 + 16 pairs at
+  len 512 (37.5 % of tokens in pairs) plus updates/distractors.
+Implications: (a) our schedule is short by their standard, which backs P5 (longer schedule)
+and the sweep's lr grid (step 5); (b) selecting the checkpoint by validation recall
+(`best.pt`) rather than reporting the last step is in line with how the reference work
+reports MQAR, and is the honest fallback if the drift cannot be removed; it is a protocol
+choice to state in the paper and must be made before the sweep, not after.
+
 ## 2026-10-25 P9 weight decay — runs/step1/p9_wd0_controller_s0
 
 Hypothesis (from the best-vs-final checkpoint comparison of s1, s2, P8): the post-peak drift is
