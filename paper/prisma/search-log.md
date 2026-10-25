@@ -31,9 +31,10 @@ vision/video memory.
 | S3 | arXiv via web search | key-value memory slots sequence model routing capacity long-context retrieval | 10 |
 | S4 | Proposal references and their citations | HOLA, Raven, Proteus, Zoology | 4 |
 | S5 | Known foundational work (no search) | NTM, DNC, linear attention, fast weights, GLA, DeltaNet, Gated DeltaNet, Mamba, Based, GSA, Titans | 11 |
+| S6 | Citation chasing (2026-10-24), web search for title candidates surfaced GSA's parent and a 2026 addressable-state paper | ABC (2110.02488), RAM-Net (2602.11958) | 2 |
 
-Records identified: 44. After removing duplicates (Raven and HOLA appeared in several
-searches; survey and video results dropped): 31 unique.
+Records identified: 44 on 2026-10-15 plus 2 on 2026-10-24. After removing duplicates (Raven and HOLA appeared in several
+searches; survey and video results dropped): 33 unique.
 
 ## Screening (title + abstract)
 
@@ -49,16 +50,17 @@ Excluded at screening, with reason:
 - Chain-of-Thought and Compressed Looped Transformers (2605.30757): theory of CoT budget, cited only for the capacity-scaling observation. (criterion 2)
 - GatedFWA (2512.07782): windowed attention with gated memory; abstract not verified in time. (deferred to RP3 screening)
 
-Screened out: 9. Passed to eligibility: 22.
+Screened out: 9. Passed to eligibility: 24.
 
 ## Eligibility (full abstract read; full text where available)
 
-Included (22):
+Included (24):
 
 **Bounded-state backbones and their write rules**
 Katharopoulos 2020 (linear attention); Schlag 2021 (fast weights, delta rule);
 Yang 2023 (GLA, gated decay); Yang 2024a (DeltaNet); Yang 2024b (Gated DeltaNet);
-Gu 2023 (Mamba, selective state); Arora 2024 (Based); Zhang 2024 (Gated Slot Attention);
+Gu 2023 (Mamba, selective state); Arora 2024 (Based); Peng 2021 (ABC, bounded memory with a
+learned control function; GSA's parent); Zhang 2024 (Gated Slot Attention);
 Li 2026 (GSA-2, two-sided key/value correction); Pandey 2026 (VLA, regularized writes).
 
 **Allocation, routing, and eviction into bounded memory**
@@ -66,7 +68,8 @@ Graves 2014 (NTM, content + location addressing); Graves 2016 (DNC, usage-based 
 Cui 2026 (HOLA, residual-triggered exact cache); Afzal 2026 (Raven, input-dependent slot
 routing); Bayat 2026 (Proteus, position-scheduled activation); Zeng 2026 (ARM, Gumbel
 router over slots); Yang 2026 (IndexMem, learned KV eviction); Zhao 2026 (FwPKM, sparse
-fast-weight slots); Behrouz 2025 (Titans, surprise-gated memory); Behrouz 2026 (Memory
+fast-weight slots); Xiao 2026 (RAM-Net, key-addressed sparse slots, interference named as the
+target but addressed from the key alone; NeurIPS 2026); Behrouz 2025 (Titans, surprise-gated memory); Behrouz 2026 (Memory
 Caching, growing memory as the alternative to allocation).
 
 **Capacity and interference analyses; evaluation protocols**
@@ -77,11 +80,11 @@ context); Arora 2023 (Zoology, MQAR); Hsieh 2024 (RULER).
 
 | Stage | Count |
 |-------|-------|
-| Identified | 44 |
-| After duplicate removal | 31 |
+| Identified | 46 |
+| After duplicate removal | 33 |
 | Screened out (title/abstract) | 9 |
-| Assessed for eligibility | 22 |
-| Included in synthesis | 22 |
+| Assessed for eligibility | 24 |
+| Included in synthesis | 24 |
 
 ## Gap this paper targets
 
@@ -93,7 +96,7 @@ hypothesis under test.
 
 ## Limitations of this search
 
-Single reviewer, web search over arXiv rather than database export, no forward citation
-chasing, abstracts only for most 2026 entries. The 2026 papers were verified against their
+Single reviewer, web search over arXiv rather than database export, citation chasing done
+only once (2026-10-24, two additions), abstracts only for most 2026 entries. The 2026 papers were verified against their
 arXiv abstract pages on 2026-10-15; their reported numbers have not been checked against
 full text.

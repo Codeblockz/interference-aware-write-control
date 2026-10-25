@@ -1,4 +1,4 @@
-# 742 Research Project — Interference-aware write control for bounded-memory recurrent models
+# 742 Research Project — WINCE: interference-aware write control for bounded-memory recurrent models
 
 **Next steps live in `PLAN.md`.** Working folder for the EN.705.742 research paper. Lives outside the Obsidian vault so code,
 data, checkpoints, and a venv can go here without being backed up as notes.

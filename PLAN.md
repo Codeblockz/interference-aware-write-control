@@ -49,7 +49,12 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
       figure for all writers (`experiments/plot.py`), rewrite Discussion and Conclusion around
       Table II, demote or drop the pilot section. Re-execute `Ellis-RP2-prototype.ipynb` as the
       RP3 notebook. Build with `bash paper/build.sh RP3`.
-- [ ] **9. Decide on backbone size.** The proposal said 20M parameters; the pilot uses 2.84M
+- [ ] **9. Optional: RAM-Net-style address baseline.** RAM-Net (2602.11958, NeurIPS 2026) names
+      interference as its target and avoids it by mapping each key to a sparse slot address. A
+      writer that picks the slot by a learned projection of the key (top-1, straight-through) is
+      the cleanest "avoid conflict by address" comparison for H2 and is ~40 lines in
+      `controller.py`. Add only if steps 1-6 are on schedule.
+- [ ] **10. Decide on backbone size.** The proposal said 20M parameters; the pilot uses 2.84M
       (2 layers). Keep 2 layers unless step 1 needs depth; state the choice in the paper.
 
 ## Fallback if step 1 fails

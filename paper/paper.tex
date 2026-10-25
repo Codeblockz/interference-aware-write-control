@@ -18,7 +18,7 @@
 
 \begin{document}
 
-\title{Interference-Aware Write Control for Bounded-Memory Recurrent Models\\
+\title{WINCE: Interference-Aware Write Control for Bounded-Memory Recurrent Models\\
 {\footnotesize Midpoint draft}
 \thanks{Research paper for EN.705.742 Advanced Applied Machine Learning,
 Johns Hopkins University, Fall 2026. Midpoint draft submitted 2026-10-25;
@@ -42,7 +42,8 @@ residuals, or position. This paper asks whether a write controller that also
 estimates interference, the conflict between an incoming association and the
 associations already stored, allocates a fixed memory budget better. We build a
 gated-linear-attention backbone with a bounded slot memory, a small learned
-controller that produces per-slot write gates from content, novelty, and
+controller (WINCE: write control with interference-aware conflict estimation)
+that produces per-slot write gates from content, novelty, and
 interference features, and four allocation baselines that share the same backbone
 and budget. On an extended multi-query associative recall task with key updates
 and distractors, we test (H1) whether the controller beats the strongest baseline
@@ -106,8 +107,9 @@ architecture), and relevant to a live gap in the literature
 (Section~\ref{sec:related}).
 
 The goal of the project is to answer it with a controlled architecture
-comparison. The candidate solution is a small learned write controller that
-receives, for every memory slot, the similarity of the incoming key to the slot's
+comparison. The candidate solution, which we call WINCE (write control with
+interference-aware conflict estimation), is a small learned write controller
+that receives, for every memory slot, the similarity of the incoming key to the slot's
 key and the disagreement between the incoming value and the slot's value,
 alongside input novelty and slot age. It outputs differentiable per-slot write
 gates. Backbone, memory, and controller train jointly on query-answer
@@ -153,9 +155,10 @@ to a course paper: a stated question, explicit eligibility criteria, documented
 searches, and a flow count. The question was \emph{which mechanisms decide what
 a bounded-memory sequence model writes, and has interference between stored
 associations been used as a write signal?} Three arXiv searches on 2026-10-15,
-the proposal's references, and eleven foundational papers identified 44 records;
-31 were unique; 9 were screened out by title and abstract (retrieval
-augmentation, agent memory, video, serving systems, surveys); 22 were assessed
+the proposal's references, and eleven foundational papers identified 44
+records, and citation chasing from the included papers on 2026-10-24 added
+2 more; 33 were unique; 9 were screened out by title and abstract (retrieval
+augmentation, agent memory, video, serving systems, surveys); 24 were assessed
 and included. The full log with queries and per-record exclusion reasons is in
 the project repository (\texttt{paper/prisma/search-log.md}).
 
@@ -171,9 +174,14 @@ DeltaNet~\cite{yang2024gateddeltanet} make the delta rule and its decay trainabl
 at scale; Mamba~\cite{gu2023mamba} reaches a similar place through selective
 state-space parameters. Based~\cite{arora2024based} combines a small
 linear-attention state with sliding-window attention and shows the
-recall-throughput trade-off directly. Gated Slot Attention~\cite{zhang2024gsa}
-and its successor GSA-2~\cite{li2026gsa2} organize the state as shared latent
-slots with decoupled erase and write gates on both the key and value side.
+recall-throughput trade-off directly. ABC~\cite{peng2021abc} frames linear
+attention and several of its relatives as attention over a bounded memory of
+fixed size, with a \emph{control} function that decides how each token is
+organized into the memory, and replaces the heuristic control of earlier
+variants with one learned from context. Gated Slot Attention~\cite{zhang2024gsa}
+builds on ABC, and its successor GSA-2~\cite{li2026gsa2} organizes the state as
+shared latent slots with decoupled erase and write gates on both the key and
+value side.
 Variational Linear Attention~\cite{pandey2026vla} casts each write as a
 regularized least-squares step and bounds the state norm. In all of these the
 write decision is a function of the token and a learned gate; the state is
@@ -197,7 +205,12 @@ set. ARM~\cite{zeng2026arm} does the same for a Transformer KV cache with a
 Gumbel-softmax router and sigmoid-gated blends. IndexMem~\cite{yang2026indexmem}
 trains an indexer to score KV entries for eviction. Fast-weight Product Key
 Memory~\cite{zhao2026fwpkm} updates only activated slots of a large sparse
-memory. Proteus~\cite{bayat2026proteus} sidesteps allocation by unlocking
+memory. RAM-Net~\cite{xiao2026ramnet} is the closest in motivation to this
+paper: it names the mixing of unrelated tokens in a shared state as the cause
+of poor fine-grained recall and answers it with an address decoder that maps
+each key to a sparse set of slots, so tokens with disjoint addresses cannot
+interfere. The address is a function of the key alone; the decoder never
+inspects what a slot currently holds. Proteus~\cite{bayat2026proteus} sidesteps allocation by unlocking
 capacity on a position schedule, and Memory Caching~\cite{behrouz2026memcache}
 sidesteps it by letting memory grow. Zoology~\cite{arora2023zoology} and
 RULER~\cite{hsieh2024ruler} supply the recall evaluations the field uses.
@@ -205,10 +218,13 @@ RULER~\cite{hsieh2024ruler} supply the recall evaluations the field uses.
 \subsection{The gap}
 
 Every allocation rule above conditions on the input (novelty, surprise,
-residual, router logits) or on position (schedule, recency, usage). None
-computes, for each candidate slot, whether the incoming association conflicts
-with the one stored there, even though the capacity analyses say that this
-conflict is what limits recall. The controller in Section~\ref{sec:controller}
+residual, router logits, a key's address) or on position (schedule, recency,
+usage). ABC and RAM-Net come nearest, since both learn a per-token slot
+assignment and RAM-Net states interference as its target, but each decides
+from the token alone and avoids conflict by construction rather than measuring
+it. None computes, for each candidate slot, whether the incoming association
+conflicts with the one stored there, even though the capacity analyses say
+that this conflict is what limits recall. The controller in Section~\ref{sec:controller}
 adds exactly that signal and nothing else, so the comparison isolates its value.
 
 %=====================================================================
