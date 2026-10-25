@@ -12,8 +12,8 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 | Date       | Deliverable                 | Status            |
 |------------|-----------------------------|-------------------|
 | 2026-09-13 | RP1 — Pick topic (proposal) | submitted, 100/100 |
-| 2026-10-25 | RP2 — Midpoint check / draft | draft built (`paper/Ellis-RP2.pdf`, 8 pp) with placeholder Table II and `\pending{}` notes for the final results; awaiting Ryan's review and Canvas upload |
-| 2026-12-13 | RP3 — Final paper           | not started       |
+| 2026-10-25 | RP2 — Midpoint check / draft | submitted 2026-10-25 (`paper/Ellis-RP2.pdf`, 8 pp, plus `Ellis-RP2-prototype.ipynb`); Table II and `\pending{}` notes remain for RP3 |
+| 2026-12-13 | RP3 — Final paper           | next: PLAN.md step 1 |
 
 ## Contents
 

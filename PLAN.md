@@ -4,7 +4,7 @@ Read this first in a fresh session. The paper master is `paper/paper.tex`; the f
 paper is the midpoint draft with every `\pending{...}` note and the empty Table II
 (`tab:final`) filled. Grep `pending{` to list what is still open.
 
-**State as of 2026-10-24.** RP2 draft done (`paper/Ellis-RP2.pdf`, 8 pp). Pilot ran one
+**State as of 2026-10-25.** RP2 submitted to Canvas 2026-10-25 (`paper/Ellis-RP2.pdf`, 8 pp, plus the prototype notebook). Pilot ran one
 seed at 24 associations / 16 slots: controller 51.9%, ablation 50.7%, recency 11.0%. The
 proposal's target (64 associations / 32 slots) does not leave chance within 8000 steps.
 Residual-cache and position-activation writers are implemented and tested, never trained.
@@ -23,8 +23,12 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 - [ ] **1. Make N=64 / S=32 learn.** Blocking. Try, in order: longer schedule (Zoology uses
       tens of thousands of steps); curriculum from 16 pairs growing N while keeping S;
       larger memory dim. Done when the controller beats recency on validation at the target.
-      Config: `experiments/configs/pilot32.yaml`. If this is not solved by **2026-11-15**,
-      take the fallback below.
+      Config: `experiments/configs/target.yaml` is the target (64 queried + 16 updates + 16
+      distractors, 32 slots, length 512; `pilot.yaml` with 2 layers, lr 3e-4). `pilot32.yaml` is the intermediate rung for the
+      curriculum (32 + 8 + 8 = 48 associations, 32 slots, length 256), not the target.
+      Both still carry the pre-pilot settings (4 layers, lr 1e-3); the pilot that learned
+      used 2 layers and lr 3e-4 (`pilot16.yaml`), so align those before judging a run.
+      If this is not solved by **2026-11-15**, take the fallback below.
 - [ ] **2. Vectorize or fuse the memory write loop** (`src/bmem/memory.py`, `controller.py`).
       It is 98% of step time (0.65 s/step at B=64, T=512; torch.compile gives 2x). Done when a
       pilot32 step is under 0.1 s and `pytest -m slow` still passes.
