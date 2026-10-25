@@ -20,7 +20,10 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 
 ## Steps, in dependency order
 
-- [ ] **1. Make N=64 / S=32 learn.** Blocking. Try, in order: longer schedule (Zoology uses
+- [~] **1. Make N=64 / S=32 learn.** Answered 2026-10-25: it learns with 2 layers / lr 3e-4
+      on 3/3 seeds (peak 18-19 % val, 11-14 % at 8000; recency at chance). Left open before
+      freezing `target.yaml`: vocab choice (P1b) and the post-peak drift (step 3). Details in
+      `experiments/LOG.md`. Original text follows. Blocking. Try, in order: longer schedule (Zoology uses
       tens of thousands of steps); curriculum from 16 pairs growing N while keeping S;
       larger memory dim. Done when the controller beats recency on validation at the target.
       Config: `experiments/configs/target.yaml` is the target (64 queried + 16 updates + 16
