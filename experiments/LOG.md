@@ -97,6 +97,29 @@ the vocab cliff (P1 vs P1b: the 2048-vocab embedding rows get gradient often eno
 the decay). P9b decides between wd 0 everywhere and wd 0.1 except the embedding; C2 confirms
 across seeds. This run is the candidate "controller at target" reference until C2 is in.
 
+## 2026-10-25 P10 soft gates — runs/step1/p10_softgates_controller_s0
+
+Hypothesis: the post-peak drift is the biased straight-through gradient of the hard slot
+gates; with soft gates the gradient is exact and the training loss cannot drift upward.
+Config: target.yaml --set model.hard_gates=false --set model.fast=true, controller, seed 0,
+wd 0.1 (original). Note: soft gates change the method (writes spread over slots); if this is
+the fix, the paper must say so and the sweep uses it for controller and ablation alike.
+Prediction if true: breakthrough may come later (soft gates learned slower in the 10-15
+smoke tests), but val recall at 8000 within 2 pp of its peak and training loss monotone
+after the peak. If it drifts too, the ST gates are not the cause.
+Result:
+Decision:
+
+## 2026-10-25 P11 lr 1e-4 — runs/step1/p11_lr1e-4_controller_s0
+
+Hypothesis: the drift is an optimisation-noise effect at lr 3e-4 (too large once the memory
+path is active); at 1e-4 the peak holds.
+Config: target.yaml --set train.lr=1e-4 --set model.fast=true, controller, seed 0, wd 0.1.
+Prediction if true: later breakthrough (lr 3x smaller), then no decline. Also serves as the
+lower point of the step-5 lr grid.
+Result:
+Decision:
+
 ## 2026-10-25 P9b decay except embeddings — runs/step1/p9b_noembdecay_controller_s0
 
 Hypothesis: the drift comes only from decaying the embedding rows; keeping wd 0.1 on the
@@ -104,8 +127,12 @@ other matrices (the usual practice) gives the P9 result without giving up regula
 Config: target.yaml --set train.decay_embeddings=false --set model.fast=true, controller, seed 0.
 Prediction if true: within 2 pp of P9 at every eval from 3000 on and no decline. If it drifts,
 decay on the memory projections or head also matters and wd 0 is the setting.
-Result:
-Decision:
+Result (interim, step 4500): 15.8 / 18.3 / 17.7 / 13.8 / 12.6 % at 2500-4500: **drifts like
+wd 0.1**. Embedding norm flat (1447 → 1447), so the embedding is not what decays into the drift.
+Decision (interim): **prediction failed.** Together with C2 s1 (below) this refutes "weight decay
+on the embeddings is the drift". The P9 run (wd 0, seed 0) did not drift, but that is now 1 of 2
+wd-0 runs; the embedding-norm correlation in the earlier checkpoints was a side effect of
+wd 0.1, not the cause. Mechanism still open. Let it finish for the record.
 
 ## 2026-10-25 C2 confirm seeds, wd 0 — runs/step1/c2_wd0_controller_s{1,2}
 
@@ -113,8 +140,16 @@ Hypothesis: the P9 result (no decline, ~30 %+) holds across seeds.
 Config: target.yaml --set train.weight_decay=0 --set model.fast=true, controller, seeds 1, 2.
 Prediction: both > 25 % at 8000 and within 2 pp of their peak. (If P9b wins on validation,
 rerun the seeds with P9b's setting instead.) s1 launched 19:05, s2 19:13.
-Result:
-Decision:
+Result (interim): s1 at wd 0: 16.9 / 18.4 / 17.4 / **13.8 %** at 2500-4000, i.e. the usual
+peak-then-drift, with embedding norm flat (1448 → 1448) and head/projection norms growing
+slightly. s2 at step 1500 (plateau).
+Decision (interim): **prediction failed on s1.** Weight decay is not the mechanism (or not
+sufficient). What the drifting runs share: the *training* loss rises after the peak (6.7 → 7.4
+in P0) while gnorm stays small, i.e. the optimizer walks uphill on the true loss. That is the
+signature of a biased gradient. The controller's straight-through hard gates
+(`one_hot + soft - soft.detach()`) give exactly that: the forward uses the one-hot, the
+backward the softmax. Next probes P10 (soft gates) and P11 (lr 1e-4 after the same warmup)
+at wd 0.1, seed 0, so they compare to P0/C1 directly.
 
 ## 2026-10-25 P1b vocab 4096 — runs/step1/p1b_vocab4096_controller_s0
 

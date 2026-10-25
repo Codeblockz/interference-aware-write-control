@@ -128,3 +128,18 @@ def test_write_bias_init_opens_the_gate():
     frac0 = m0(x, return_gates=True)[1]["gates"].sum(-1).mean().item()
     frac1 = m1(x, return_gates=True)[1]["gates"].sum(-1).mean().item()
     assert frac1 > frac0 + 0.2 and frac1 > 0.8
+
+
+@cuda
+def test_hard_gates_flag_switches_to_soft():
+    torch.manual_seed(0)
+    x = torch.randint(1, 512, (2, 16), device="cuda")
+    base = dict(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32)
+    hard = RecallModel(ModelConfig(**base)).cuda()
+    soft = RecallModel(ModelConfig(**base, hard_gates=False)).cuda()
+    soft.load_state_dict(hard.state_dict())
+    gh = hard(x, return_gates=True)[1]["gates"]
+    gs = soft(x, return_gates=True)[1]["gates"]
+    assert hard.writer.hard and not soft.writer.hard
+    assert ((gh > 0).sum(-1) <= 1).all()  # one slot per step (times the scalar write gate)
+    assert ((gs > 1e-6).sum(-1) > 1).any()  # soft spreads mass over slots
