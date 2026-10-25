@@ -21,17 +21,34 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
 
 ## Status
 
-- 2026-10-25 18:20: **Step 1 result: the target learns; 3 seeds agree.** Controller at 64+16+16 /
-  32 slots / len 512 / vocab 8192, 2 layers, lr 3e-4: breakthrough at step 2000-2500 on all
-  seeds, peak 18-19 % val at step 3000, then a drift down to 11-14 % at 8000. Recency: chance.
-  Test recall (L=512) 11.4 / 11.7 / 13.6 % for seeds 0 / 1 / 2. P8 (write gate open at init)
-  changes nothing: the optimizer closes the gate by step 1000 and reopens it at 2000 like every
-  other run. P1 (vocab 2048) reaches 32 % with no drift and holds 32.1 % at L=1024, but the
-  generator cannot build L=2048 sequences at vocab 2048, so the protocol's longest test is
-  impossible there. Open: (a) the peak-then-drift at vocab 8192 (step 3); (b) vocab choice for
-  the sweep (P1b: vocab 4096). Fast path (3.4x) landed; eval OOM at L=2048 fixed (eval batch
-  scaled by length; `--eval_only` to redo test evals from `ckpt.pt`). GPU idle.
-  Days to fallback date (2026-11-15): 21.
+- 2026-10-25 19:25: **Step 1 answered; drift explained and fixed.** Target (64+16+16 / 32 slots /
+  len 512 / vocab 8192, 2 layers, lr 3e-4) learns on 3/3 seeds; recency at chance on 3/3.
+  With wd 0.1 the controller peaks at 18-19 % and decays to 11-14 % (embedding rows shrink);
+  with wd 0 (P9) it reaches **31.5 % val, test 31.6 / 31.5 / 31.4 % at L = 512 / 1024 / 2048**,
+  no decline. Running: P9b (wd 0.1 except embedding) to pick the setting; C2 seeds 1, 2 at wd 0.
+  Refuted today: write-gate cold start (P8); graded vocab effect (P1b). Fast path 3.4x; position
+  writer now on it too. Fallback date 2026-11-15 no longer needed; keep as the hard stop.
+
+**Time ledger (training minutes, from results.json; test evals and the eager eval re-runs
+are extra). Session: 15:48-19:25 on 2026-10-25, one RTX 5090 shared by 2-3 runs at a time.**
+
+| run | mode | train min |
+|---|---|---|
+| P0 controller s0 / recency s0 | eager | 105 / 27 |
+| C1 controller s1 / s2 | fast | 33 / 30 |
+| C1b recency s1 / s2 | fast | 22 / 22 |
+| P1 vocab 2048 | eager | 105 |
+| P1b vocab 4096 | fast | 31 |
+| P8 write bias | fast | 22 |
+| P9 wd 0 | fast | 24 |
+| P9b, C2 s1, C2 s2 | fast | running |
+| **total so far** | | **~7.7 GPU-h** across 13 runs |
+
+Method / protocol changes today (also in README "Decisions log" and git): fast path
+(`model.fast`, numerically identical); `write_bias_init` option (default 0, unused);
+`decay_embeddings` option; eval batch scaled by length; `--eval_only`. No change to the
+controller's features, gates, or the task. Candidate protocol change pending P9b: weight
+decay setting for the sweep.
 
 ---
 
