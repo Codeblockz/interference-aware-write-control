@@ -18,7 +18,7 @@
 
 \begin{document}
 
-\title{WINCE: Interference-Aware Write Control for Bounded-Memory Recurrent Models\\
+\title{Interference-Aware Write Control for Bounded-Memory Recurrent Models\\
 {\footnotesize Midpoint draft}
 \thanks{Research paper for EN.705.742 Advanced Applied Machine Learning,
 Johns Hopkins University, Fall 2026. Midpoint draft submitted 2026-10-25;
@@ -42,7 +42,7 @@ residuals, or position. This paper asks whether a write controller that also
 estimates interference, the conflict between an incoming association and the
 associations already stored, allocates a fixed memory budget better. We build a
 gated-linear-attention backbone with a bounded slot memory, a small learned
-controller (WINCE: write control with interference-aware conflict estimation)
+controller
 that produces per-slot write gates from content, novelty, and
 interference features, and four allocation baselines that share the same backbone
 and budget. On an extended multi-query associative recall task with key updates
@@ -107,9 +107,8 @@ architecture), and relevant to a live gap in the literature
 (Section~\ref{sec:related}).
 
 The goal of the project is to answer it with a controlled architecture
-comparison. The candidate solution, which we call WINCE (write control with
-interference-aware conflict estimation), is a small learned write controller
-that receives, for every memory slot, the similarity of the incoming key to the slot's
+comparison. The candidate solution is a small learned write controller that
+receives, for every memory slot, the similarity of the incoming key to the slot's
 key and the disagreement between the incoming value and the slot's value,
 alongside input novelty and slot age. It outputs differentiable per-slot write
 gates. Backbone, memory, and controller train jointly on query-answer
