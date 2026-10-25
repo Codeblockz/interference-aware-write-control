@@ -23,8 +23,9 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 - `src/bmem/` — the model: `data.py` (MQAR + updates/distractors/delay, adapted from Zoology),
   `backbone.py` (GLA via flash-linear-attention), `memory.py` (slot memory), `controller.py`
   (interference controller + 4 baseline writers), `model.py`, `train.py`, `metrics.py`.
-- `experiments/` — `run.py` (one run -> `results.json`), `aggregate.py` (tables, paired
-  bootstrap), `plot.py` (figures), `block_diagram.py` (paper Fig. 1), `configs/` (smoke, sanity, pilot).
+- `experiments/` — `run.py` (one run -> `results.json`), `progress.py` (status table), `curves.py`
+  (training curves), `bench_step.py` (step timing), `aggregate.py` (tables, paired bootstrap),
+  `plot.py` (paper figures), `block_diagram.py` (paper Fig. 1), `LOG.md` (lab notebook), `configs/`.
 - `tests/` — `pytest` (fast) and `pytest -m slow` (GPU learnability regression).
 - `Ellis-RP2-prototype.ipynb` — RP2 companion notebook: sample data, model accounting, gate
   heatmaps, an 800-step training run on the small task, the bootstrap statistics, and the pilot
@@ -43,11 +44,22 @@ Files here were copied on 2026-10-15; re-copy if the vault versions change.
 source ~/venvs/jhu-742/bin/activate
 pytest                                   # fast tests
 pytest -m slow                           # ~1 min GPU learnability check
-python experiments/run.py --config experiments/configs/pilot.yaml --writer controller --seed 0 --out_dir runs/pilot/controller_s0
-python experiments/aggregate.py runs/pilot --pair controller recency
-python experiments/plot.py runs/pilot --out paper/figures/pilot.png
-bash paper/build.sh RP2
+python experiments/run.py --config experiments/configs/target.yaml --writer controller --seed 0 \
+    --out_dir runs/step1/p1_vocab2048_controller_s0 --set data.vocab_size=2048 --tag "P1 vocab 2048"
+python experiments/run.py ... --resume          # continue a killed run from its ckpt.pt
+python experiments/progress.py runs/step1 --watch 300   # status table: step, s/step, ETA, loss, val recall, gate stats
+python experiments/curves.py runs/step1        # loss / recall / gnorm / write-fraction curves -> runs/step1/curves.png
+python experiments/bench_step.py experiments/configs/target.yaml   # s/step for the write-loop speedup work
+python experiments/aggregate.py runs/final --pair controller recency
+python experiments/plot.py runs/final --out paper/figures/final.png
+bash paper/build.sh RP3
 ```
+
+Every run writes a timestamped `log.txt`, a `results.json` that is rewritten at each eval
+(`status: running` → `done`, effective config, git commit, gate statistics in `history`),
+`ckpt.pt` for `--resume`, and `best.pt` (best validation recall) for `--init_from` curriculum
+runs. `--set section.key=value` overrides any config field. The lab notebook is
+`experiments/LOG.md`: one entry per launched run, hypothesis and prediction written before launch.
 
 ## Decisions log
 

@@ -28,10 +28,17 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
       curriculum (32 + 8 + 8 = 48 associations, 32 slots, length 256), not the target.
       Both still carry the pre-pilot settings (4 layers, lr 1e-3); the pilot that learned
       used 2 layers and lr 3e-4 (`pilot16.yaml`), so align those before judging a run.
+      The search is a tree of one-variable probes (P1 vocab, P2 slots=128, P3 density ladder,
+      P4 lr, P5 long schedule, P6 curriculum via `--init_from`, P7 mem_dim), each with a
+      pre-registered prediction and result in `experiments/LOG.md`; definitions of
+      chance / learning / solved / kill rule are at the top of that file.
       If this is not solved by **2026-11-15**, take the fallback below.
 - [ ] **2. Vectorize or fuse the memory write loop** (`src/bmem/memory.py`, `controller.py`).
-      It is 98% of step time (0.65 s/step at B=64, T=512; torch.compile gives 2x). Done when a
-      pilot32 step is under 0.1 s and `pytest -m slow` still passes.
+      It is 98% of step time (0.65 s/step at B=64, T=512; torch.compile gives 2x). Measure with
+      `experiments/bench_step.py` before and after each attempt (compile the step body and
+      preallocate memory tensors; CUDA graphs; chunked recurrence only as a documented last
+      resort, behind a config flag). Done when a target step is under 0.1 s, `pytest -m slow`
+      passes, and a 300-step smoke run matches the old loop's loss curve.
 - [ ] **3. Gradient stability at scale.** Backbone grad norms of 20-50 rely on clipping. Test
       per-group clipping and truncated backprop through the memory recurrence. Done when no
       run in a 3-seed pilot32 collapses or spikes above 100.

@@ -27,3 +27,57 @@ def paired_bootstrap_ci(a: np.ndarray, b: np.ndarray, n_boot: int = 2000, alpha:
     """CI on mean(a - b) over matched examples (same test sequences, two models)."""
     assert a.shape == b.shape
     return bootstrap_ci(a - b, n_boot, alpha, seed)
+
+
+@torch.no_grad()
+def gate_stats(gates: Tensor, inputs: Tensor, labels: Tensor, filled: Tensor, cfg) -> dict:
+    """Diagnostics of where a writer spends its budget, from one batch.
+
+    gates: (B, T, S) write gates; inputs/labels: (B, T); filled: (B, S) end-of-sequence
+    occupancy; cfg: the MQARConfig that generated the batch (gives the block layout).
+
+    Returns means over the batch:
+      write_frac     mean per-step gate mass (sum over slots), all positions
+      slot_entropy   entropy (bits) of the time-averaged slot distribution; max log2(S)
+      filled_frac    mean occupancy at the end of the sequence
+      write_by_class write_frac at value positions of queried pairs, distractor pairs,
+                     update pairs, and at every other position (query keys, filler)
+    """
+    B, T, S = gates.shape
+    mass = gates.float().sum(-1)  # (B, T)
+    p = gates.float().sum((0, 1))
+    p = p / p.sum().clamp_min(1e-12)
+    entropy = float(-(p * torch.log2(p.clamp_min(1e-12))).sum())
+
+    n_pairs = cfg.num_kv_pairs + cfg.num_distractors
+    ctx_end, upd_end = 2 * n_pairs, cfg.context_tokens()
+    pos = torch.arange(T, device=gates.device)
+    value_pos = (pos % 2 == 1)
+    in_ctx, in_upd = value_pos & (pos < ctx_end), value_pos & (pos >= ctx_end) & (pos < upd_end)
+    # Queried keys are the inputs at labelled positions; a context pair is queried if its key is one.
+    qmask = labels != IGNORE
+    nq = int(qmask[0].sum())
+    classes = {}
+    if nq > 0 and bool((qmask.sum(1) == nq).all()):
+        qkeys = inputs[qmask].view(B, nq)
+        prev_key = torch.roll(inputs, 1, dims=1)  # key token precedes its value token
+        is_queried = (prev_key.unsqueeze(-1) == qkeys.unsqueeze(1)).any(-1)  # (B, T)
+        ctx_q, ctx_d = in_ctx & is_queried, in_ctx & ~is_queried
+        classes = {
+            "queried": _masked_mean(mass, ctx_q),
+            "distractor": _masked_mean(mass, ctx_d),
+            "update": _masked_mean(mass, in_upd),
+            "other": _masked_mean(mass, ~(in_ctx | in_upd)),
+        }
+    return {
+        "write_frac": float(mass.mean()),
+        "slot_entropy": entropy,
+        "filled_frac": float(filled.float().mean()),
+        "write_by_class": classes,
+    }
+
+
+def _masked_mean(x: Tensor, m: Tensor) -> float:
+    m = m.expand_as(x) if m.dim() == 1 else m
+    n = int(m.sum())
+    return float((x * m).sum() / n) if n else float("nan")

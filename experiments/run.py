@@ -1,15 +1,29 @@
-"""Run one experiment: python experiments/run.py --config experiments/configs/pilot.yaml \
-       --writer controller --seed 0 --out_dir runs/pilot/controller_s0
+"""Run one experiment.
 
-Writes out_dir/results.json (metrics, cost accounting, config) and out_dir/log.txt.
+    python experiments/run.py --config experiments/configs/target.yaml \
+        --writer controller --seed 0 --out_dir runs/step1/p1_vocab2048_controller_s0 \
+        --set data.vocab_size=2048 --tag "P1 vocab confound"
+
+Writes to out_dir:
+  log.txt          timestamped training log (appended on --resume)
+  results.json     effective config, git hash, status (running/done), history, cost, test eval
+  ckpt.pt          latest training state (overwritten); resume with --resume
+  best.pt          weights at the best validation recall
+  model.pt         final weights; per_example_L{L}.npy per test length
+
+--set key=value overrides a config entry by dotted path (data.*, model.*, train.*, or a
+top-level key such as n_train). Values are coerced to the field's type; unknown keys error.
 """
 
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
+import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +36,55 @@ from bmem.data import MQARConfig, make_splits  # noqa: E402
 from bmem.model import ModelConfig, RecallModel  # noqa: E402
 from bmem.train import TrainConfig, evaluate, train  # noqa: E402
 
+SECTIONS = {"data": MQARConfig, "model": ModelConfig, "train": TrainConfig}
+
+
+def apply_overrides(cfg: dict, sets: list[str]) -> dict:
+    """Apply ``section.key=value`` / ``key=value`` overrides in place; returns cfg."""
+    for item in sets:
+        if "=" not in item:
+            raise SystemExit(f"--set expects key=value, got {item!r}")
+        key, raw = item.split("=", 1)
+        parts = key.split(".")
+        if len(parts) == 2 and parts[0] in SECTIONS:
+            section, name = parts
+            fields = {f.name: f for f in dataclasses.fields(SECTIONS[section])}
+            if name not in fields:
+                raise SystemExit(f"--set {key}: {SECTIONS[section].__name__} has no field {name!r}")
+            cfg.setdefault(section, {})[name] = _coerce(raw, cfg[section].get(name, fields[name].default), fields[name].type)
+        elif len(parts) == 1:
+            if key not in cfg:
+                raise SystemExit(f"--set {key}: not a top-level config key ({sorted(cfg)})")
+            cfg[key] = _coerce(raw, cfg[key], None)
+        else:
+            raise SystemExit(f"--set {key}: use section.key with section in {sorted(SECTIONS)}, or a top-level key")
+    return cfg
+
+
+def _coerce(raw: str, current, annotation):
+    val = yaml.safe_load(raw)
+    ann = str(annotation or "")
+    if current is None or current is dataclasses.MISSING:
+        return val
+    if isinstance(current, bool) or "bool" in ann:
+        return bool(val) if not isinstance(val, str) else val.lower() in ("1", "true", "yes")
+    if isinstance(current, int) and not isinstance(current, bool):
+        return int(val)
+    if isinstance(current, float):
+        return float(val)
+    if isinstance(current, list):
+        return list(val) if isinstance(val, (list, tuple)) else [val]
+    return val
+
+
+def git_info(root: Path) -> dict:
+    try:
+        sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=root, text=True).strip()
+        dirty = bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"], cwd=root, text=True).strip())
+        return {"commit": sha, "dirty": dirty}
+    except Exception:  # not a git checkout
+        return {"commit": None, "dirty": None}
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -29,17 +92,37 @@ def main():
     ap.add_argument("--writer", default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out_dir", required=True)
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    ap.add_argument("--tag", default="", help="free text recorded in results.json (what this run probes)")
+    ap.add_argument("--resume", action="store_true", help="continue from out_dir/ckpt.pt")
+    ap.add_argument("--init_from", default=None, help="state_dict or ckpt to initialise weights from (curriculum)")
     args = ap.parse_args()
 
-    cfg = yaml.safe_load(Path(args.config).read_text())
+    cfg = apply_overrides(yaml.safe_load(Path(args.config).read_text()), args.set)
+    if args.writer:
+        cfg["model"]["writer"] = args.writer
+    cfg["train"]["seed"] = args.seed
+    if args.init_from:
+        cfg["train"]["init_from"] = args.init_from
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    logf = (out / "log.txt").open("w")
+    logf = (out / "log.txt").open("a" if args.resume else "w")
 
     def log(msg):
         print(msg)
         logf.write(msg + "\n")
         logf.flush()
+
+    started = datetime.now().isoformat(timespec="seconds")
+    if args.resume and (out / "results.json").exists():  # keep the original start time across resumes
+        started = json.loads((out / "results.json").read_text()).get("started_at", started)
+    meta = {
+        "writer": cfg["model"]["writer"], "seed": args.seed, "tag": args.tag, "config": cfg,
+        "config_file": args.config, "overrides": args.set, "git": git_info(Path(__file__).resolve().parents[1]),
+        "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+        "started_at": started, "ended_at": None, "status": "running",
+    }
+    log(f"run: {json.dumps({k: meta[k] for k in ('tag', 'config_file', 'overrides', 'git', 'gpu', 'started_at')})}")
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -50,21 +133,27 @@ def main():
     log(f"data: {data_cfg} train={len(splits['train'])} val={len(splits['val'])} test={len(splits['test'])}")
 
     mcfg = ModelConfig(**{**cfg["model"], "vocab_size": data_cfg.vocab_size})
-    if args.writer:
-        mcfg.writer = args.writer
     model = RecallModel(mcfg)
     log(f"model: {mcfg}\nparams: {model.n_params()}\nstate_bytes: {model.state_bytes()}")
+    meta.update(params=model.n_params(), state_bytes=model.state_bytes())
 
-    tcfg = TrainConfig(**{**cfg["train"], "seed": args.seed})
-    train_stats = train(model, splits["train"], splits["val"], tcfg, device, log=log)
+    tcfg = TrainConfig(**cfg["train"])
 
-    results = {
-        "writer": mcfg.writer, "seed": args.seed, "config": cfg,
-        "params": model.n_params(), "state_bytes": model.state_bytes(),
-        **{k: v for k, v in train_stats.items()},
-        "eval": {},
-    }
+    def write_results(train_stats: dict, extra: dict | None = None) -> dict:
+        results = {**meta, **train_stats, "steps_done": train_stats["history"][-1]["step"] if train_stats["history"] else 0,
+                   "eval": {}, **(extra or {})}
+        tmp = out / "results.json.tmp"
+        tmp.write_text(json.dumps(results, indent=2, default=float))
+        tmp.replace(out / "results.json")
+        return results
+
+    if not args.resume:  # so progress.py sees the tag and schedule before the first eval
+        write_results({"history": [], "train_seconds": 0.0, "train_tokens_per_s": 0.0, "peak_mem_mb": 0.0})
+    train_stats = train(model, splits["train"], splits["val"], tcfg, device, log=log,
+                        out_dir=out, resume=args.resume, on_eval=write_results)
+
     # Test at the training length and at each extra evaluation length.
+    evals = {}
     eval_lengths = [data_cfg.seq_len] + list(cfg.get("eval_lengths", []))
     for L in eval_lengths:
         ecfg = MQARConfig(**{**cfg["data"], "seq_len": L})
@@ -74,10 +163,12 @@ def main():
         per_ex = ev.pop("per_example")
         np.save(out / f"per_example_L{L}.npy", per_ex)
         ev["wall_s"] = time.perf_counter() - t0
-        results["eval"][f"L{L}"] = ev
+        evals[f"L{L}"] = ev
         log(f"test L={L}: recall {ev['recall']:.4f} ci95 {ev['recall_ci95']} ({ev['n_examples']} ex)")
 
-    (out / "results.json").write_text(json.dumps(results, indent=2, default=float))
+    meta["ended_at"] = datetime.now().isoformat(timespec="seconds")
+    meta["status"] = "done"
+    write_results(train_stats, {"eval": evals})
     torch.save(model.state_dict(), out / "model.pt")
     log(f"wrote {out/'results.json'}")
 
