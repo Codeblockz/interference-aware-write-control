@@ -30,6 +30,7 @@ class ModelConfig:
     controller_hidden: int = 64
     assoc_shift: int = 1  # key projected from h_{t-shift}: an association pairs each value with the preceding token
     fast: bool = False  # torch.compile the per-timestep memory step (same numerics; see memory_step)
+    write_bias_init: float = 0.0  # controller's scalar write-gate bias at init (0 -> sigmoid 0.5; 2.2 -> 0.9)
 
 
 class RecallModel(nn.Module):
@@ -45,6 +46,8 @@ class RecallModel(nn.Module):
             self.writer = WRITERS[cfg.writer]()
             self.writer.slot_mlp[0] = nn.Linear(self.writer.n_feat, cfg.controller_hidden)
             self.writer.slot_mlp[2] = nn.Linear(cfg.controller_hidden, 1)
+            with torch.no_grad():
+                self.writer.write_mlp[2].bias.fill_(cfg.write_bias_init)
         self.to_ctx = nn.Linear(cfg.d_model, self.writer.ctx_dim) if self.writer.ctx_dim else None
         self.head = nn.Sequential(
             nn.Linear(cfg.d_model + cfg.mem_dim, cfg.d_model), nn.GELU(), nn.Linear(cfg.d_model, cfg.vocab_size)

@@ -112,3 +112,17 @@ def test_position_writer_ignores_fast_flag():
     x = torch.randint(1, 512, (2, 16), device="cuda")
     logits, info = m(x, return_gates=True)
     assert logits.shape == (2, 16, 512) and info["gates"].shape == (2, 16, 4)
+
+
+@cuda
+def test_write_bias_init_opens_the_gate():
+    """write_bias_init sets the controller's initial write probability; default is unchanged."""
+    torch.manual_seed(0)
+    x = torch.randint(1, 512, (4, 32), device="cuda")
+    base = ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32)
+    m0 = RecallModel(base).cuda()
+    m1 = RecallModel(ModelConfig(**{**base.__dict__, "write_bias_init": 3.0})).cuda()
+    m1.load_state_dict({k: v for k, v in m0.state_dict().items() if "write_mlp.2.bias" not in k}, strict=False)
+    frac0 = m0(x, return_gates=True)[1]["gates"].sum(-1).mean().item()
+    frac1 = m1(x, return_gates=True)[1]["gates"].sum(-1).mean().item()
+    assert frac1 > frac0 + 0.2 and frac1 > 0.8
