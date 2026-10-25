@@ -34,6 +34,7 @@ class TrainConfig:
     lr: float = 3e-4
     min_lr: float = 0.0  # cosine floor; 0 reproduces the original schedule
     weight_decay: float = 0.1
+    decay_embeddings: bool = True  # False: no weight decay on the token embedding (rare rows otherwise shrink)
     warmup: int = 100
     grad_clip: float = 1.0
     eval_every: int = 250
@@ -156,8 +157,13 @@ def train(model: RecallModel, train_split: MQARBatch, val_split: MQARBatch, cfg:
     model.to(device).train()
     if cfg.init_from:
         load_weights(model, cfg.init_from, log)
-    decay = [p for n, p in model.named_parameters() if p.ndim >= 2]
-    no_decay = [p for n, p in model.named_parameters() if p.ndim < 2]
+    def decays(name: str, p: torch.Tensor) -> bool:
+        if p.ndim < 2:
+            return False
+        return cfg.decay_embeddings or not name.startswith("backbone.embed")
+
+    decay = [p for n, p in model.named_parameters() if decays(n, p)]
+    no_decay = [p for n, p in model.named_parameters() if not decays(n, p)]
     opt = torch.optim.AdamW(
         [{"params": decay, "weight_decay": cfg.weight_decay}, {"params": no_decay, "weight_decay": 0.0}],
         lr=cfg.lr, betas=(0.9, 0.95),
