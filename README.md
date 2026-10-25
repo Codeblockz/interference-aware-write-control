@@ -84,3 +84,13 @@ Jupyter kernel: `jhu-742`. Keep datasets under `~/datasets/`, not in the vault.
   gradient blow-up in the memory loop traced to 1/||x|| gradients of cosine/L2 features
   (eps=1e-2 added; spikes 65k -> 50); content projection of the token feeds the write
   decision; pilot lr 3e-4, 2 layers. Proposal-scale task (64 assoc) still unlearned.
+- 2026-10-25: `model.fast=true` runs the per-timestep memory step through `torch.compile` and
+  (in training) captures the whole forward/backward as one CUDA graph (`train.cuda_graph`).
+  Target step: 0.78 s -> 0.23 s on a shared GPU, same logits/gates/grads to 1e-4
+  (`tests/test_smoke.py::test_fast_path_matches_eager`), 300-step loss curve identical.
+  The position writer stays on the eager loop. The remaining cost is ~512 x (fwd + bwd)
+  of tiny kernels; a fused Triton step would be the next lever.
+- 2026-10-25: the target (64 + 16 + 16 associations, 32 slots, len 512) learns with 2 layers and
+  lr 3e-4: controller 17% val recall at step 2500, recency at chance. The earlier `pilot` failure
+  was the 4-layer / lr 1e-3 setting. Gate statistics show the controller writes nothing
+  (write_frac 0.000) for the first ~1000+ steps; the plateau ends when the write gate reopens.

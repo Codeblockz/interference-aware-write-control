@@ -82,3 +82,33 @@ def test_controller_learns_small_task():
     with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
         r = recall_per_example(m(s["val"].inputs.cuda())[0], s["val"].labels.cuda()).mean().item()
     assert r > 0.5, f"controller recall {r:.3f} on the small task; expected > 0.5"
+
+
+@cuda
+@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "residual"])
+def test_fast_path_matches_eager(writer):
+    """model.fast (compiled functional memory step) must give the same logits, gates and gradients."""
+    torch.manual_seed(0)
+    cfg = ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32, writer=writer)
+    m = RecallModel(cfg).cuda()
+    x = torch.randint(1, 512, (3, 24), device="cuda")
+    logits_e, info_e = m(x, return_gates=True)
+    logits_e.float().sum().backward()
+    grads_e = {n: p.grad.clone() for n, p in m.named_parameters() if p.grad is not None}
+    m.zero_grad(set_to_none=True)
+    m.cfg.fast = True
+    logits_f, info_f = m(x, return_gates=True)
+    logits_f.float().sum().backward()
+    assert torch.allclose(logits_e, logits_f, atol=1e-4, rtol=1e-4)
+    assert torch.allclose(info_e["gates"], info_f["gates"], atol=1e-5)
+    assert torch.allclose(info_e["mem"].keys, info_f["mem"].keys, atol=1e-5)
+    for n, g in grads_e.items():
+        assert torch.allclose(g, dict(m.named_parameters())[n].grad, atol=1e-3, rtol=1e-3), n
+
+
+@cuda
+def test_position_writer_ignores_fast_flag():
+    m = RecallModel(ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32, writer="position", fast=True)).cuda()
+    x = torch.randint(1, 512, (2, 16), device="cuda")
+    logits, info = m(x, return_gates=True)
+    assert logits.shape == (2, 16, 512) and info["gates"].shape == (2, 16, 4)

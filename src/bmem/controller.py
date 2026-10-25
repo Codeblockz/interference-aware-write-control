@@ -41,8 +41,16 @@ class Writer(nn.Module):
 
     ctx_dim: int = 0  # >0 for writers that take a content projection
 
-    def forward(self, mem: SlotMemory, key: Tensor, value: Tensor, pos: int, seq_len: int, ctx: Tensor | None = None) -> Tensor:
+    uses_pos: bool = False  # True if the gate depends on ``pos``; such writers run on the eager loop only
+
+    def forward(self, mem: SlotMemory, key: Tensor, value: Tensor, pos: int, seq_len, ctx: Tensor | None = None) -> Tensor:
+        """``seq_len`` is the int T on the eager path, or a 0-d tensor holding 1/T on the
+        compiled path (``RecallModel.memory_step``); use :func:`_inv_len` to normalise."""
         raise NotImplementedError
+
+
+def _inv_len(seq_len) -> Tensor | float:
+    return seq_len if isinstance(seq_len, Tensor) else 1.0 / float(seq_len)
 
 
 class InterferenceController(Writer):
@@ -67,9 +75,9 @@ class InterferenceController(Writer):
         if not self.interference:
             sim = torch.zeros_like(sim)
             dis = torch.zeros_like(dis)
-        T = float(seq_len)
+        inv_T = _inv_len(seq_len)
         phi = torch.stack(
-            [sim, dis, novelty.expand_as(sim), mem.age / T, mem.usage / T, mem.filled], dim=-1
+            [sim, dis, novelty.expand_as(sim), mem.age * inv_T, mem.usage * inv_T, mem.filled], dim=-1
         )  # (B, S, 6)
         pooled = torch.cat([novelty, mem.filled.mean(-1, keepdim=True), dis.mean(-1, keepdim=True)], -1)
         return phi, pooled
@@ -79,7 +87,7 @@ class InterferenceController(Writer):
         if ctx is None:
             ctx = pooled.new_zeros(pooled.shape[0], self.ctx_dim)
         slot_logits = self.slot_mlp(phi).squeeze(-1)  # (B, S): where to write (interference, age)
-        slot_logits = slot_logits + self.prior * (mem.age / float(seq_len) + (1 - mem.filled))
+        slot_logits = slot_logits + self.prior * (mem.age * _inv_len(seq_len) + (1 - mem.filled))
         write = torch.sigmoid(self.write_mlp(torch.cat([pooled, ctx], -1)))  # (B, 1): whether to write (content + memory)
         soft = torch.softmax(slot_logits, dim=-1)
         if self.hard:
@@ -121,6 +129,8 @@ class ResidualCacheWriter(Writer):
 class PositionWriter(Writer):
     """Proteus-style incremental activation: slot j is unlocked once pos >= j * T / S,
     writes go round-robin among unlocked slots. Capacity grows with position."""
+
+    uses_pos = True
 
     def forward(self, mem, key, value, pos, seq_len, ctx=None):
         unlocked = int(min(mem.S, max(1, (pos + 1) * mem.S // seq_len + 1)))

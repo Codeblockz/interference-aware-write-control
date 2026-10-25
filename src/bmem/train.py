@@ -41,6 +41,7 @@ class TrainConfig:
     ckpt_every: int | None = None  # default: eval_every
     init_from: str | None = None  # path to a state_dict / checkpoint; weights only
     bf16: bool = True
+    cuda_graph: bool = True  # with model.fast: capture the whole training forward/backward as one CUDA graph
     seed: int = 0
 
 
@@ -96,6 +97,26 @@ def evaluate(model: RecallModel, split: MQARBatch, device, batch_size: int = 128
     if stats is not None:
         out["gates"] = stats
     return out
+
+
+class _LogitsOnly(nn.Module):
+    def __init__(self, model: RecallModel, bf16: bool):
+        super().__init__()
+        self.model, self.bf16 = model, bf16
+
+    def forward(self, tokens):
+        with torch.autocast("cuda", dtype=torch.bfloat16, enabled=self.bf16, cache_enabled=False):
+            return self.model(tokens)[0]
+
+
+def graphed_forward(model: RecallModel, sample: torch.Tensor, bf16: bool = True):
+    """Capture forward+backward of the (compiled-step) model on ``sample``'s shape as one
+    CUDA graph; the returned callable maps tokens -> logits and replays it. Only valid for
+    inputs of exactly that shape; parameters are updated in place by the optimizer as usual."""
+    wrapper = _LogitsOnly(model, bf16)
+    wrapper(sample).float().sum().backward()  # trigger torch.compile outside the capture
+    model.zero_grad(set_to_none=True)
+    return torch.cuda.make_graphed_callables(wrapper, (sample,), num_warmup_iters=3)
 
 
 def load_weights(model: nn.Module, path: str | Path, log=print) -> dict:
@@ -181,6 +202,14 @@ def train(model: RecallModel, train_split: MQARBatch, val_split: MQARBatch, cfg:
             "peak_mem_mb": torch.cuda.max_memory_allocated(device) / 2**20 if device.type == "cuda" else 0.0,
         }
 
+    fwd = None
+    if model.cfg.fast and cfg.cuda_graph and device.type == "cuda" and not model.writer.uses_pos:
+        sample = train_split.inputs[: cfg.batch_size].to(device)
+        tc = time.perf_counter()
+        fwd = graphed_forward(model, sample, cfg.bf16)
+        log(f"{_now()} fast path: compiled memory step + CUDA graph captured in {time.perf_counter() - tc:.0f} s")
+    elif model.cfg.fast:
+        log(f"{_now()} fast path: compiled memory step (no CUDA graph)")
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
     t0 = time.perf_counter() - prior_elapsed
@@ -190,8 +219,11 @@ def train(model: RecallModel, train_split: MQARBatch, val_split: MQARBatch, cfg:
         x, y = train_split.inputs[idx].to(device), train_split.labels[idx].to(device)
         for g in opt.param_groups:
             g["lr"] = _lr_at(step, cfg)
-        with torch.autocast("cuda", dtype=torch.bfloat16, enabled=cfg.bf16):
-            logits, _ = model(x)
+        if fwd is not None:
+            logits = fwd(x)
+        else:
+            with torch.autocast("cuda", dtype=torch.bfloat16, enabled=cfg.bf16):
+                logits, _ = model(x)
         loss = loss_fn(logits, y)
         opt.zero_grad(set_to_none=True)
         loss.backward()

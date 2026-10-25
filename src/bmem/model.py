@@ -29,6 +29,7 @@ class ModelConfig:
     writer: str = "controller"
     controller_hidden: int = 64
     assoc_shift: int = 1  # key projected from h_{t-shift}: an association pairs each value with the preceding token
+    fast: bool = False  # torch.compile the per-timestep memory step (same numerics; see memory_step)
 
 
 class RecallModel(nn.Module):
@@ -49,6 +50,28 @@ class RecallModel(nn.Module):
             nn.Linear(cfg.d_model + cfg.mem_dim, cfg.d_model), nn.GELU(), nn.Linear(cfg.d_model, cfg.vocab_size)
         )
 
+        self._cstep = None
+
+    def memory_step(self, keys, values, age, usage, filled, q, k, v, ctx, inv_T):
+        """One timestep as a pure function of the memory tensors: read with q, gate with
+        the writer, write (k, v). Returns (read, gate, new memory tensors). Writers that
+        depend on the position (PositionWriter) are not supported here."""
+        mem = SlotMemory.__new__(SlotMemory)
+        mem.S, mem.d = keys.shape[1], keys.shape[2]
+        mem.keys, mem.values, mem.age, mem.usage, mem.filled = keys, values, age, usage, filled
+        r = mem.read(q)
+        g = self.writer(mem, k, v, 0, inv_T, ctx)
+        mem.write(g, k, v)
+        return r, g, mem.keys, mem.values, mem.age, mem.usage, mem.filled
+
+    def _compiled_step(self):
+        if self._cstep is None:
+            import torch._dynamo
+
+            torch._dynamo.config.cache_size_limit = max(torch._dynamo.config.cache_size_limit, 64)
+            self._cstep = torch.compile(self.memory_step, dynamic=False)
+        return self._cstep
+
     def forward(self, tokens: Tensor, return_gates: bool = False) -> tuple[Tensor, dict]:
         B, T = tokens.shape
         h = self.backbone(tokens)  # (B, T, d_model), parallel over T
@@ -59,12 +82,23 @@ class RecallModel(nn.Module):
         ctx = self.to_ctx(h).float() if self.to_ctx is not None else None
         mem = SlotMemory(B, self.cfg.slots, self.cfg.mem_dim, tokens.device)
         reads, gates = [], []
-        for t in range(T):
-            reads.append(mem.read(q[:, t]))
-            g = self.writer(mem, k[:, t], v[:, t], t, T, None if ctx is None else ctx[:, t])
-            mem.write(g, k[:, t], v[:, t])
-            if return_gates:
-                gates.append(g)
+        if self.cfg.fast and not self.writer.uses_pos:
+            step = self._compiled_step()
+            inv_T = torch.full((), 1.0 / T, device=tokens.device)
+            st = (mem.keys, mem.values, mem.age, mem.usage, mem.filled)
+            for t in range(T):
+                r, g, *st = step(*st, q[:, t], k[:, t], v[:, t], None if ctx is None else ctx[:, t], inv_T)
+                reads.append(r)
+                if return_gates:
+                    gates.append(g)
+            mem.keys, mem.values, mem.age, mem.usage, mem.filled = st
+        else:
+            for t in range(T):
+                reads.append(mem.read(q[:, t]))
+                g = self.writer(mem, k[:, t], v[:, t], t, T, None if ctx is None else ctx[:, t])
+                mem.write(g, k[:, t], v[:, t])
+                if return_gates:
+                    gates.append(g)
         r = torch.stack(reads, dim=1).to(h.dtype)  # (B, T, mem_dim)
         logits = self.head(torch.cat([h, r], dim=-1))
         info = {"gates": torch.stack(gates, 1) if return_gates else None, "mem": mem}
