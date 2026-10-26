@@ -48,6 +48,33 @@ decay setting for the sweep.
 
 ---
 
+## Decisions 2026-10-25 20:10 (Ryan: "do it")
+
+1. **Checkpoint rule:** every run reports the checkpoint with the best validation recall
+   (`best.pt`), tests on it, three seeds per cell. Stated in the paper's protocol. Reason: the
+   cosine tail leaves some runs in a worse policy basin (see C1/C2); best-validation selection
+   reports the policy a run reached, and matches how Zoology reports MQAR.
+2. **N = 128 column at train length 1024** (tests at 1024 / 2048 / 4096); N = 64 stays at 512.
+3. **Pair-only recency** replaces naive recency as the "no learning" reference in Table II; naive
+   recency stays as one reported line (it is the proposal's baseline) and is at chance by
+   construction.
+Also: hard gates stay (P10), lr grid for step 5 is {3e-4, 6e-4, 1e-3} (P11), vocab stays 8192.
+
+## 2026-10-25 C3 confirm stage under the final rules — runs/step2/c3_<writer>_s{0,1,2}
+
+Hypothesis: with best-validation selection, the controller at the target is reproducibly
+~30 % (its good-basin peak) or ~18 % (its bad-basin peak), the no-interference ablation is
+within a few points of it (capacity-bound cell; H2 expected not to hold at S = 32), and
+pair-only recency sits near the 43 % ceiling *if the read path trains*, which would make it
+the strongest baseline at S = 32.
+Config: target.yaml --set model.fast=true, writers controller / no_interference /
+pair_recency, seeds 0, 1, 2 (nine runs, queue.py, three at a time). Test evals run on best.pt.
+Prediction: controller best-val 18-32 % (3 seeds); ablation within 5 pp of the controller;
+pair_recency 35-43 %. If pair_recency lands near 43 %, H1 fails at S = 32 by the ceiling
+argument and the paper says so; the S = 64 column is where H1 is decided.
+Result:
+Decision:
+
 ## Finding: capacity ceiling of the task (2026-10-25, prompted by Ryan: "it might be a data issue")
 
 Simulated the best any writer can do that cannot see the future: admit every pair at its

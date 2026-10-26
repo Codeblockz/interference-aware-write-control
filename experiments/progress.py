@@ -38,6 +38,8 @@ def read_run(d: Path, dead_after_min: float, root: Path) -> dict | None:
             row["total"] = r["config"]["train"]["steps"]
             if r.get("status") == "done":
                 row["status"] = "done"
+            if r.get("selected_step") and r.get("status") == "done":
+                row["tag"] = (row["tag"] + f" [best@{r['selected_step']}]")[:40]
             h = r.get("history") or []
             if h:
                 last = h[-1]

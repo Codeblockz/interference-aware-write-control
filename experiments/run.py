@@ -8,7 +8,9 @@ Writes to out_dir:
   log.txt          timestamped training log (appended on --resume)
   results.json     effective config, git hash, status (running/done), history, cost, test eval
   ckpt.pt          latest training state (overwritten); resume with --resume
-  best.pt          weights at the best validation recall
+  best.pt          weights at the best validation recall; the test evals use it (--select best,
+                   the default; --select last uses the final weights). results.json records
+                   selected_step / selected_val_recall.
   model.pt         final weights; per_example_L{L}.npy per test length
 
 --set key=value overrides a config entry by dotted path (data.*, model.*, train.*, or a
@@ -96,7 +98,9 @@ def main():
     ap.add_argument("--tag", default="", help="free text recorded in results.json (what this run probes)")
     ap.add_argument("--resume", action="store_true", help="continue from out_dir/ckpt.pt")
     ap.add_argument("--init_from", default=None, help="state_dict or ckpt to initialise weights from (curriculum)")
-    ap.add_argument("--eval_only", action="store_true", help="skip training: load out_dir/ckpt.pt and run the test evals")
+    ap.add_argument("--eval_only", action="store_true", help="skip training: load the selected checkpoint and run the test evals")
+    ap.add_argument("--select", choices=["best", "last"], default="best",
+                    help="which weights the test evals use: best validation recall (best.pt, default) or the last step")
     args = ap.parse_args()
 
     cfg = apply_overrides(yaml.safe_load(Path(args.config).read_text()), args.set)
@@ -149,18 +153,28 @@ def main():
         tmp.replace(out / "results.json")
         return results
 
+    meta["select"] = args.select
     if args.eval_only:
         ck = torch.load(out / "ckpt.pt", map_location="cpu", weights_only=False)
-        model.load_state_dict(ck["model"])
-        model.to(device)
         train_stats = {k: prior.get(k) for k in ("history", "train_seconds", "train_tokens_per_s", "peak_mem_mb")}
         train_stats["history"] = train_stats["history"] or ck["history"]
+        model.load_state_dict(ck["model"])
         log(f"eval_only: loaded {out/'ckpt.pt'} at step {ck['step']}")
     else:
         if not args.resume:  # so progress.py sees the tag and schedule before the first eval
             write_results({"history": [], "train_seconds": 0.0, "train_tokens_per_s": 0.0, "peak_mem_mb": 0.0})
         train_stats = train(model, splits["train"], splits["val"], tcfg, device, log=log,
                             out_dir=out, resume=args.resume, on_eval=write_results)
+    hist = train_stats["history"]
+    if args.select == "best" and (out / "best.pt").exists() and hist:
+        best = max(hist, key=lambda e: e["val_recall"])
+        model.load_state_dict(torch.load(out / "best.pt", map_location="cpu"))
+        meta["selected_step"], meta["selected_val_recall"] = best["step"], best["val_recall"]
+        log(f"select=best: test evals use best.pt (step {best['step']}, val recall {best['val_recall']:.4f})")
+    else:
+        meta["selected_step"] = hist[-1]["step"] if hist else None
+        meta["selected_val_recall"] = hist[-1]["val_recall"] if hist else None
+    model.to(device)
 
     # Test at the training length and at each extra evaluation length.
     evals = {}

@@ -390,7 +390,8 @@ answer head.}
 Writer & Gate rule & Models \\
 \midrule
 Interference controller & Eq.~\eqref{eq:gate} on the six features of Eq.~\eqref{eq:features} & proposed \\
-Recency & $g_{t,j} = 1$ for the oldest (or first empty) slot, else 0 & trivial control \\
+Recency & $g_{t,j} = 1$ for the oldest (or first empty) slot, else 0, at every position & trivial control \\
+Pair-only recency & recency gate applied only at the value position of a pair (uses the task layout) & non-learned reference \\
 Input-only routing & controller with interference features zeroed & Raven~\cite{afzal2026raven} \\
 Residual cache & write to the oldest slot with gate $\sigma(\beta(\lVert r_t(k_t) - v_t\rVert/\sqrt{d} - \tau))$, learned $\tau, \beta$ & HOLA~\cite{cui2026hola} \\
 Position activation & slot $j$ unlocked at position $\lceil jT/S \rceil$; recency among unlocked slots & Proteus~\cite{bayat2026proteus} \\
@@ -428,10 +429,32 @@ a short training run, and the statistics on sample data.
 \label{sec:protocol}
 
 \textit{Factors.} Memory budget $S \in \{32, 64, 128\}$; associations $N \in
-\{64, 128\}$; writer $\in$ \{controller, no-interference, recency, residual,
-position\}. Updates and distractors fixed at $N/4$ each; delay swept separately
-at $N = 64$. Train at length 512, test at 512, 1024, and 2048 with freshly
-generated sequences.
+\{64, 128\}$; writer $\in$ \{controller, no-interference, recency, pair-only
+recency, residual, position\}. Updates and distractors fixed at $N/4$ each; delay
+swept separately at $N = 64$. The $N = 64$ column trains at length 512 and tests
+at 512, 1024, and 2048; the $N = 128$ column trains at length 1024 and tests at
+1024, 2048, and 4096, because its context block plus queries ($2 \cdot 192 + 128$
+tokens) does not fit in 512. Test sequences are freshly generated.
+
+\textit{Capacity ceiling.} A writer that cannot see the future can at best admit
+every pair, overwrite updated keys in place, and evict the oldest pair when
+full. Simulated on the generator, this pair-only policy reaches 43\% exact
+recall at $N = 64$, $S = 32$ (50\% with perfect foreknowledge of which pairs
+will be queried), 81\% at $S = 64$ (100\% with foreknowledge), and 100\% at
+$S = 128$. The $S = 32$ cell is therefore capacity-bound: the whole margin that
+allocation can win there is 7 points, and the hypotheses are decided at
+$S = 64$, where rejecting distractors is worth 19 points. The pair-only recency
+baseline implements exactly this ceiling policy, so it is the reference against
+which learned allocation must be judged; naive recency, which writes at every
+position, holds only the last $S$ tokens and sits at chance at these densities.
+
+\textit{Checkpoint selection.} Each run is evaluated at the checkpoint with the
+best validation recall during training (validation is 1{,}280 held-out
+sequences scored every 500 steps), not at the last step, and the selected step
+is reported. On this task the cosine tail can move a run from the pair-only
+write policy into a worse one (Section~\ref{sec:pilot}); best-validation
+selection reports the policy a run reached, and is how the reference MQAR
+work reports accuracy~\cite{arora2023zoology}.
 
 \textit{Seeds and statistics.} Three seeds per cell. Primary metric is exact
 recall: the fraction of answer positions predicted exactly, averaged over the
