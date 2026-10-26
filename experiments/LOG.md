@@ -82,7 +82,19 @@ peak 8.3 GB at length 1024 (4.2 GB at 512); solo 0.34 s/step at length 1024 and 
 (0.12 at 512). Eval batch changed to a fixed 64k-token budget (identical to every run so far
 at length 512; halves the batch for the length-1024 column, which otherwise spiked to ~20 GB
 at the train-length test eval).
-Projection: N = 64 column 54 runs x ~30 min / 3 ≈ 9-10 h wall; N = 128 column 54 runs x
+Launch note (2026-10-26 07:35, relaunched 09:07): the first launch at three concurrent OOMed
+its third job after two minutes. `bench_step.py` reports allocated peak (4.2 GB at S = 64,
+8.3 GB at S = 128 / length 1024) but a running process holds far more on the card because
+the CUDA-graph pool keeps every timestep's activations: measured with nvidia-smi over a short
+real run (train + test evals), controller: N = 64 S = 64 12.2 GB, S = 128 15.8 GB; N = 128
+(length 1024) S = 32 18.6 GB, S = 128 29.6 GB (of 32.6). `expandable_segments` saves ~1.5 GB
+only. N = 64 column relaunched at two concurrent (`jobq.py --max 2 --free-gb 17`, S = 64 and
+S = 128 jobs interleaved so two S = 128 never share the card), with `experiments/watchdog.py`
+(non-zero exit, 15-min log silence, dead queue). The two runs that finished before the pause
+(controller 63.6 %, ablation 30.2 % val at S = 64 seed 0) are kept. N = 128 concurrency is
+decided after the column from probes of S = 64 / 128 at batch 32 (same tokens per step as the
+length-512 column) that run automatically when the queue drains.
+Projection (revised): N = 64 column 52 runs x ~30 min / 2 ≈ 13-14 h wall; N = 128 column 54 runs x
 ~80-90 min / 3 ≈ 25-27 h wall; ≈ 70 GPU-h total.
 Hypotheses and predictions (ceilings from `analysis/ceiling.py`: pair-only FIFO 43 / 81 / 100 %
 at N = 64, S = 32 / 64 / 128; 24 / 43 / 81 % at N = 128):
