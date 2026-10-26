@@ -21,13 +21,15 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
 
 ## Status
 
-- 2026-10-25 19:50: Step 1 answered (target learns, 3/3 seeds; recency at chance 3/3). The
-  post-peak drift is **not** weight decay (P9b, C2 s1, C2 s2 all drift at wd 0 / no-embed-decay;
-  P9 was 1 of 3). The two non-drifting runs share one gate policy (write every pair, no filler);
-  the drifting ones do not. The target cell is capacity-bound: ideal pair-only writer = 43 %
-  (see "Finding: capacity ceiling"). **Protocol error found: N=128 needs L ≥ 640.** P10 and P11
-  killed at step 4000 (both at chance). Fast path 3.4x; position writer on it.
-  GPU time today ≈ 9.5 h across 16 runs.
+- 2026-10-25 22:00: **Step 1 closed; target.yaml frozen.** C3 confirm (9 runs, best-val
+  selection, 3 seeds): pair-only recency 40.1 % (ceiling 43 %), no-interference ablation 33 %
+  on 2/3 seeds (19 % on the third), controller 18-19 % on 3/3, naive recency 0 %. H1 and H2
+  fail at N = 64, S = 32 (capacity-bound cell); the hypotheses are decided at S = 64. The
+  "drift" is a worse policy basin reached by the cosine tail, not weight decay (3 seeds), not
+  the gate init (P8), not fixable by soft gates or lr 1e-4 (both never learn). Protocol now:
+  best-validation checkpoint, N = 128 at length 1024, pair-only recency as the non-learned
+  reference. Paper protocol text updated and builds (`paper/Ellis-RP3.pdf` draft).
+  GPU time today ≈ 14.5 h across 25 runs. Next: steps 4-5, then the sweep (S = 64 first).
 
 ---|---|---|
 | P0 controller s0 / recency s0 | eager | 105 / 27 |
@@ -72,8 +74,34 @@ pair_recency, seeds 0, 1, 2 (nine runs, queue.py, three at a time). Test evals r
 Prediction: controller best-val 18-32 % (3 seeds); ablation within 5 pp of the controller;
 pair_recency 35-43 %. If pair_recency lands near 43 %, H1 fails at S = 32 by the ceiling
 argument and the paper says so; the S = 64 column is where H1 is decided.
-Result:
-Decision:
+Result (nine runs, 20:03-21:50, fast path, 21-39 min each; test on best.pt):
+
+| writer | seed | best step | val at best | last val | test 512 / 1024 / 2048 |
+|---|---|---|---|---|---|
+| controller | 0 | 3000 | 19.0 | 12.7 | 18.8 / 14.8 / 13.0 |
+| controller | 1 | 3000 | 18.3 | 11.5 | 18.3 / 14.5 / 12.8 |
+| controller | 2 | 3000 | 18.8 | 13.7 | 18.7 / 14.5 / 12.7 |
+| no_interference | 0 | 4000 | 19.4 | 9.8 | 19.1 / 14.4 / 12.1 |
+| no_interference | 1 | 7500 | 32.7 | 32.7 | 32.6 / 32.6 / 32.6 |
+| no_interference | 2 | 8000 | 33.1 | 33.1 | 33.1 / 33.1 / 33.1 |
+| pair_recency | 0 | 7000 | 40.1 | 40.1 | 40.1 / 40.1 / 40.1 |
+| pair_recency | 1 | 7500 | 40.1 | 40.1 | 40.1 / 40.1 / 40.0 |
+| pair_recency | 2 | 6500 | 40.1 | 40.1 | 40.1 / 40.1 / 40.1 |
+
+Decision: predictions held on the controller (18-19 %, 3/3 in the bad basin) and on pair-only
+recency (40.1 %, within 3 pp of the 43 % simulated ceiling, flat in length); the ablation
+prediction failed in an informative direction: 2/3 seeds found the good basin (33 %, flat in
+length, no decline) and the controller 0/3. Reading, to be tested at S = 64 before it goes in
+the paper as more than an observation: at S = 32 the only thing worth learning is "write
+pairs, not filler", and the two interference features make that harder to find, not easier.
+**At the proposal's headline setting the ranking is pair-only recency 40 > ablation 33 (2/3)
+> controller 19 > naive recency 0.** H1 and H2 both fail at N = 64, S = 32, by the capacity
+argument; the length generalisation of the good-basin runs is perfect (no loss at 4x), of the
+bad-basin runs not (19 → 13). Step 1 is closed: `target.yaml` is frozen as is (vocab 8192,
+2 layers, lr 3e-4, wd 0.1, hard gates, 8000 steps, best-val selection). Next: step 4 (residual,
+position at the target), step 5 (lr grid {3e-4, 6e-4, 1e-3} per writer, since basin-finding
+is lr-sensitive), then the sweep with the S = 64 column first.
+
 
 ## Finding: capacity ceiling of the task (2026-10-25, prompted by Ryan: "it might be a data issue")
 

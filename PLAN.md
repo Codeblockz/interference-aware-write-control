@@ -20,7 +20,7 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 
 ## Steps, in dependency order
 
-- [~] **1. Make N=64 / S=32 learn.** Answered 2026-10-25: it learns with 2 layers / lr 3e-4
+- [x] **1. Make N=64 / S=32 learn.** Closed 2026-10-25 22:00; `target.yaml` frozen; see LOG "C3". Answered 2026-10-25: it learns with 2 layers / lr 3e-4
       on 3/3 seeds (peak 18-19 % val, 11-14 % at 8000; recency at chance). Left open before
       freezing `target.yaml`: vocab choice (P1b) and the post-peak drift (step 3). Details in
       `experiments/LOG.md`. Original text follows. Blocking. Try, in order: longer schedule (Zoology uses
@@ -36,13 +36,13 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
       pre-registered prediction and result in `experiments/LOG.md`; definitions of
       chance / learning / solved / kill rule are at the top of that file.
       If this is not solved by **2026-11-15**, take the fallback below.
-- [ ] **2. Vectorize or fuse the memory write loop** (`src/bmem/memory.py`, `controller.py`).
+- [x] **2. Vectorize or fuse the memory write loop** (done 2026-10-25: `model.fast`, 3.4x, all writers; 0.1 s/step not reached, not needed) (`src/bmem/memory.py`, `controller.py`).
       It is 98% of step time (0.65 s/step at B=64, T=512; torch.compile gives 2x). Measure with
       `experiments/bench_step.py` before and after each attempt (compile the step body and
       preallocate memory tensors; CUDA graphs; chunked recurrence only as a documented last
       resort, behind a config flag). Done when a target step is under 0.1 s, `pytest -m slow`
       passes, and a 300-step smoke run matches the old loop's loss curve.
-- [ ] **3. Gradient stability at scale.** Backbone grad norms of 20-50 rely on clipping. Test
+- [x] **3. Gradient stability at scale.** (2026-10-25: no spikes in 25 runs on the fast path with clip 1.0; the post-peak decline is a policy basin, not instability; see LOG) Backbone grad norms of 20-50 rely on clipping. Test
       per-group clipping and truncated backprop through the memory recurrence. Done when no
       run in a 3-seed pilot32 collapses or spikes above 100.
 - [ ] **4. Train and tune the residual and position writers.** Validation-tune the residual
