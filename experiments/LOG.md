@@ -130,8 +130,60 @@ at N = 64, S = 32 / 64 / 128; 24 / 43 / 81 % at N = 128):
 A result that would change the plan: the controller beating pair_recency at S = 64 on all
 three seeds (H1 holds where the task is not capacity-bound), or the controller failing to
 beat naive recency anywhere (the learned gate is worse than FIFO even with headroom).
-Result:
-Decision:
+Result, N = 64 column (54 runs, 2026-10-26 07:35-19:21, 0 failures; 09:07 relaunch at two
+concurrent; `python experiments/analysis/sweep_table.py runs/sweep --n 64`):
+
+### N = 64: mean test recall (%) over seeds at each length [n seeds]; gates = write_frac / pairs written / filler written at the best checkpoint
+
+| writer | S=32 L512 | S=32 L1024 | S=32 L2048 | S=64 L512 | S=64 L1024 | S=64 L2048 | S=128 L512 | S=128 L1024 | S=128 L2048 | S=32 gates | S=64 gates | S=128 gates |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| controller | 22.9 [3] | 20.1 [3] | 18.8 [3] | 63.5 [3] | 62.3 [3] | 61.1 [3] | 66.8 [3] | 61.2 [3] | 57.7 [3] | 0.10 / 0.29 / 0.06 | 0.13 / 0.69 / 0.01 | 0.26 / 0.82 / 0.13 |
+| no_interference | 27.7 [3] | 27.7 [3] | 27.8 [3] | 45.6 [3] | 45.6 [3] | 45.6 [3] | 77.3 [3] | 77.8 [3] | 78.3 [3] | 0.17 / 0.56 / 0.08 | 0.33 / 1.00 / 0.18 | 0.35 / 1.00 / 0.20 |
+| pair_recency | 40.1 [3] | 40.1 [3] | 40.1 [3] | 70.1 [3] | 70.1 [3] | 70.1 [3] | 100.0 [3] | 100.0 [3] | 100.0 [3] |  |  |  |
+| recency | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 29.0 [3] | 24.0 [3] | 21.3 [3] |  |  |  |
+| residual | 30.2 [3] | 29.1 [3] | 28.5 [3] | 0.2 [3] | 0.2 [3] | 0.2 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.19 / 0.69 / 0.07 | 0.31 / 0.32 / 0.31 | 0.24 / 0.24 / 0.24 |
+| position | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] |  |  |  |
+
+### N = 64: hypothesis tests at the training length (L512); paired over test sequences, pooled across seeds, 95% bootstrap CI; per-seed differences in brackets
+
+- H1 S=32: controller - pair_recency = -17.2 pp, CI [-17.3, -17.1]  ['-20.8', '-21.2', '-9.5']  -> fails
+- H2 S=32: controller - no_interference = -4.8 pp, CI [-4.9, -4.7]  ['-7.0', '-5.7', '-1.7']  -> reversed
+- H1 S=64: controller - pair_recency = -6.6 pp, CI [-6.6, -6.5]  ['-6.5', '-5.8', '-7.4']  -> fails
+- H2 S=64: controller - no_interference = +17.9 pp, CI [+17.8, +18.0]  ['+6.5', '+24.7', '+22.5']  -> holds
+- H1 S=128: controller - pair_recency = -33.2 pp, CI [-33.4, -33.1]  ['-52.3', '-24.9', '-22.4']  -> fails
+- H2 S=128: controller - no_interference = -10.5 pp, CI [-10.8, -10.3]  ['-45.2', '+5.9', '+7.7']  -> reversed
+
+Reading (three seeds per cell):
+- H1 fails at every budget, every seed. Pair-only recency, which has no parameters in the
+  writer, beats the controller by 6.6 pp at S = 64 (seeds -5.8 to -7.4), by 17 pp at S = 32
+  and by 33 pp at S = 128, where it is perfect and the controller averages 67 with one seed
+  at 47.6. Gate statistics say why: the controller admits 69 % of pairs at S = 64 and 82 %
+  at S = 128 and still writes filler (13 % at S = 128); FIFO admits 100 % and no filler.
+- H2 holds at S = 64 (+17.9 pp, every seed positive: +6.5, +24.7, +22.5) and reverses at
+  S = 128 (-10.5 pp pooled, but seeds -45.2, +5.9, +7.7: the reversal is one controller seed
+  in the bad basin; 2/3 seeds favour the controller) and at S = 32 (-4.8 pp, all seeds
+  negative, inside the capacity-bound cell). The ablation at S = 64 writes every pair plus
+  18 % of filler and lands at 45.6; the interference features cut filler to 1 % there.
+  Caveat: best-of-each lrs (controller 3e-4, ablation 1e-3); S6b is the same-lr check.
+- The pooled test-sequence bootstrap CIs are ±0.1-0.3 pp and understate the uncertainty
+  wherever seeds disagree (S = 128); the paper reports the per-seed differences next to the
+  pooled CI, and calls S = 128 H2 undecided rather than reversed.
+- Residual: 30 % at S = 32 (3/3 seeds learned at lr 6e-4, confirming the S5 pick there) and
+  chance at S = 64 and 128 (6/6 runs; writes ~1/4-1/3 of every position class, no
+  discrimination). Its lr was chosen at S = 32 and does not transfer. Position 0 % and naive
+  recency 0 % everywhere except recency 29 % at S = 128 (holds the last 128 tokens = 64 pairs).
+- Length generalization: flat (< 0.3 pp drop 512 -> 2048) for every writer except the
+  controller (-2.4 pp at S = 64, -9 pp at S = 128) and naive recency.
+- Prediction check: pair_recency within 5 pp of its ceiling (70 vs 81 at S = 64: no, 11 pp
+  under; 100 at S = 128: yes; 40 vs 43 at S = 32: yes); naive recency / position < 5 %: yes
+  except recency at S = 128; controller bimodal: yes at S = 128 only; H1 fail at S = 32 and
+  64: yes; H2 not supported: wrong at S = 64, where it holds on every seed. Residual bimodal:
+  no, it is uniform per cell.
+Decision: N = 128 column proceeds unchanged (one run at a time at batch 64, ~38 h, after
+S6b). The paper's H1 paragraph: not supported, with the admission-rate mechanism; H2:
+supported at S = 64, undecided at S = 128 pending S6b, reversed inside the capacity-bound
+cell. Residual's lr transfer failure goes in the limitations with the one-seed selection.
+Result (N = 128 column): pending.
 
 ## 2026-10-25 S5 hyperparameter selection at the target — runs/step3/s5_<writer>_lr<lr>_s0, s5_controller_h{32,128}_s0
 

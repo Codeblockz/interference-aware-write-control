@@ -24,12 +24,16 @@ def main():
     ap.add_argument("root")
     ap.add_argument("--stall-min", type=float, default=15)
     ap.add_argument("--every", type=int, default=300)
+    ap.add_argument("--queue-log", default=None, help="watch only this queue log (default: every queue_*.log under root)")
     a = ap.parse_args()
     root = Path(a.root)
     seen_fail: set[str] = set()
+    qlogs = lambda: [Path(a.queue_log)] if a.queue_log else sorted(root.glob("queue_*.log"))
     while True:
         ps = running_cmds()
-        for qlog in sorted(root.glob("queue_*.log")):
+        for qlog in qlogs():
+            if not qlog.exists():
+                continue
             for m in re.finditer(r"^(\S+) done \[(\d+)\] (.*)$", qlog.read_text(), re.M):
                 if m.group(2) != "0" and m.group(0) not in seen_fail:
                     seen_fail.add(m.group(0))
@@ -43,7 +47,7 @@ def main():
             if log.exists() and now - log.stat().st_mtime > 60 * a.stall_min:
                 print(f"STALL {d.name}: log.txt silent for {(now - log.stat().st_mtime)/60:.0f} min", flush=True)
                 sys.exit(1)
-        finished = any("launcher finished" in q.read_text() for q in root.glob("queue_*.log"))
+        finished = any("launcher finished" in q.read_text() for q in qlogs() if q.exists())
         if finished:
             print("launcher finished", flush=True)
             sys.exit(0)
