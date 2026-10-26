@@ -45,7 +45,7 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 - [x] **3. Gradient stability at scale.** (2026-10-25: no spikes in 25 runs on the fast path with clip 1.0; the post-peak decline is a policy basin, not instability; see LOG) Backbone grad norms of 20-50 rely on clipping. Test
       per-group clipping and truncated backprop through the memory recurrence. Done when no
       run in a 3-seed pilot32 collapses or spikes above 100.
-- [ ] **4. Train and tune the residual and position writers.** Validation-tune the residual
+- [x] **4. Train and tune the residual and position writers.** (2026-10-25: 3 seeds each at the target; residual 24 % on 1/3 seeds, chance on 2/3; position 0 % on 3/3; tuning folds into step 5. LOG "S4".) Validation-tune the residual
       threshold/beta and the position schedule at N=64, S=32. Done when each has a results.json
       at the target and its gate statistics look sane (not all-write, not never-write).
 - [ ] **5. Hyperparameter selection** for every writer: lr grid {1e-3, 3e-4, 1e-4}, controller

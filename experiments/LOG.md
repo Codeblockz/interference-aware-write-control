@@ -61,8 +61,26 @@ only the slot set grows), i.e. near chance, which the sweep will show at every S
 is the interesting one: if its learned threshold rejects filler (filler reads back as a large
 residual too, so it may not), it approaches pair-only recency (~40 %); if not, it writes
 everything and sits near chance. Prediction: residual 5-25 %, position < 2 %.
-Result:
-Decision:
+Result (six runs, 21:56-22:51, 21-29 min each, best-val selection):
+
+| writer | seed | best step | val | test 512 / 1024 / 2048 | write_frac | by class q/d/u/other |
+|---|---|---|---|---|---|---|
+| residual | 0 | 7000 | 0.1 | 0.1 / 0.1 / 0.1 | 0.65 | 0.67 / 0.68 / 0.67 / 0.64 |
+| residual | 1 | 8000 | 0.1 | 0.1 / 0.1 / 0.1 | 0.68 | 0.70 / 0.70 / 0.72 / 0.67 |
+| residual | 2 | 7500 | **24.2** | 24.2 / 24.2 / 24.1 | 0.19 | 0.61 / 0.62 / 0.54 / **0.09** |
+| position | 0-2 | - | 0.0 | 0.0 | 1.00 | 1 / 1 / 1 / 1 |
+
+Decision: predictions held for position (writes every position by construction, holds the
+last S tokens, 0 % at every seed: it is a naive-recency variant at this density and will stay
+near chance at every S; keep it as the proposal's baseline, expect nothing from it) and
+half-held for residual: 2/3 seeds never learn to discriminate (threshold admits ~2/3 of every
+position class, filler included → chance), 1/3 finds a policy that writes 61 % of pairs and
+9 % of filler and reaches 24 %, flat in length. Same basin structure as the learned
+controller (good basin rarely found). Gate statistics are sane in the plan's sense (not
+all-write, not never-write) only on the seed that learned. Step 4 done: both have results at
+the target. Step 5 (lr grid) is where residual's threshold gets a fair shot; its `init_threshold`
+and `sharpness` are not config-reachable yet, add them if the lr grid does not help.
+
 
 ## Decisions 2026-10-25 20:10 (Ryan: "do it")
 
