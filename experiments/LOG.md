@@ -65,6 +65,25 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
+
+Why (Ryan, 17:40: "we changed too many variables at a time"): the sweep's H2 comparison is
+best-of-each, controller at lr 3e-4 vs ablation at 1e-3 (S5 selection), so the feature
+effect is confounded with the learning rate. Twelve runs make it symmetric: the ablation at
+the controller's lr and the controller at the ablation's lr, S = 64 and 128, three seeds,
+hidden 32, everything else as the sweep. Queued behind the N = 64 column (~3 h at two
+concurrent), ahead of the N = 128 column.
+Sweep so far (val, 3 seeds): S = 64 controller 62.5-64.3 vs ablation 39.7-57.0; S = 128
+controller 47.6-77.5 vs ablation 69.2-92.8.
+Prediction: the lr is not the explanation. Ablation at 3e-4 stays below the controller at
+S = 64 (all three seeds under 60) and above it at S = 128 (mean > 67); controller at 1e-3
+does not exceed its 3e-4 runs at either S (the S5 grid had it less stable at 1e-3). If
+instead the ablation at 3e-4 matches the controller at S = 64, the H2 gap there was tuning
+and the paper says so. Either way the paper reports both the best-of-each and the same-lr
+comparison.
+Result:
+Decision:
+
 ## 2026-10-26 S6 the sweep — runs/sweep/<writer>_S<S>_N<N>_s<seed>
 
 Purpose (PLAN step 6, paper Table II, H1 and H2): 6 writers x S {32, 64, 128} x N {64, 128} x
