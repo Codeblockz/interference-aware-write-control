@@ -50,6 +50,20 @@ decay setting for the sweep.
 
 ---
 
+## 2026-10-25 S4 residual and position writers at the target — runs/step2/s4_<writer>_s{0,1,2}
+
+Hypothesis (PLAN step 4): both untrained baselines learn at the target with the frozen
+settings, and their gate statistics are sane (residual: write_frac between 0.05 and 0.5,
+not 0 or 1; position: writes follow the unlock schedule, write_frac ≈ 1 by construction).
+Config: target.yaml --set model.fast=true, writers residual / position, seeds 0, 1, 2.
+Prediction: position ≤ naive recency plus a few points (it still writes at every position,
+only the slot set grows), i.e. near chance, which the sweep will show at every S. Residual
+is the interesting one: if its learned threshold rejects filler (filler reads back as a large
+residual too, so it may not), it approaches pair-only recency (~40 %); if not, it writes
+everything and sits near chance. Prediction: residual 5-25 %, position < 2 %.
+Result:
+Decision:
+
 ## Decisions 2026-10-25 20:10 (Ryan: "do it")
 
 1. **Checkpoint rule:** every run reports the checkpoint with the best validation recall
