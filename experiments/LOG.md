@@ -50,6 +50,25 @@ decay setting for the sweep.
 
 ---
 
+## 2026-10-25 S5 hyperparameter selection at the target — runs/step3/s5_<writer>_lr<lr>_s0, s5_controller_h{32,128}_s0
+
+Purpose (PLAN step 5, paper "Selection" paragraph): per writer, choose the learning rate from
+{3e-4, 6e-4, 1e-3} on validation recall of the best checkpoint at N = 64, S = 32, seed 0, and
+the controller hidden size from {32, 64, 128} at its chosen lr; then freeze for the sweep.
+The 3e-4 points are the seed-0 runs of C3 / S4 (same config, same seed, reused, not rerun).
+Hypothesis: basin-finding is lr-sensitive (P11 at 1e-4 never opened the gate; Zoology sweeps
+lr per architecture), so a higher lr may find the pair-only policy more often; hidden size
+matters little (the controller's writer has 1.9k parameters).
+Prediction: at least one writer changes its chosen lr away from 3e-4; controller hidden 32
+within 2 pp of 64. Caveat recorded up front: one seed per point, and the basin outcome is
+stochastic, so a ±15 pp swing between neighbouring lrs can be noise; the chosen lr is
+confirmed by the sweep's three seeds, not by this grid alone.
+Config: target.yaml --set model.fast=true --set train.lr={6e-4,1e-3} for controller,
+no_interference, residual, pair_recency, position; --set model.controller_hidden={32,128}
+for controller at lr 3e-4. Twelve runs, queue, three at a time.
+Result:
+Decision:
+
 ## 2026-10-25 S4 residual and position writers at the target — runs/step2/s4_<writer>_s{0,1,2}
 
 Hypothesis (PLAN step 4): both untrained baselines learn at the target with the frozen
