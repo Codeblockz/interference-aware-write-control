@@ -25,8 +25,8 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
   post-peak drift is **not** weight decay (P9b, C2 s1, C2 s2 all drift at wd 0 / no-embed-decay;
   P9 was 1 of 3). The two non-drifting runs share one gate policy (write every pair, no filler);
   the drifting ones do not. The target cell is capacity-bound: ideal pair-only writer = 43 %
-  (see "Finding: capacity ceiling"). **Protocol error found: N=128 needs L ≥ 640.** Running:
-  P10 soft gates, P11 lr 1e-4 (end ~20:15). Fast path 3.4x; position writer on it.
+  (see "Finding: capacity ceiling"). **Protocol error found: N=128 needs L ≥ 640.** P10 and P11
+  killed at step 4000 (both at chance). Fast path 3.4x; position writer on it.
   GPU time today ≈ 9.5 h across 16 runs.
 
 ---|---|---|
@@ -138,8 +138,14 @@ the fix, the paper must say so and the sweep uses it for controller and ablation
 Prediction if true: breakthrough may come later (soft gates learned slower in the 10-15
 smoke tests), but val recall at 8000 within 2 pp of its peak and training loss monotone
 after the peak. If it drifts too, the ST gates are not the cause.
-Result:
-Decision:
+Result: **dead at step 4000** (kill rule): val recall 0.05 %, write_frac 0.03, running loss
+8.29 and flat (8.293 → 8.279 over 1000 steps). Never left the plateau; the hard-gate runs had
+broken through by 2500.
+Decision: **prediction failed.** Soft gates do not learn the target in this schedule, so they
+are not a fix, and the straight-through gates are not shown to be the drift's cause either
+(the test never reached the regime where the drift happens). Keep hard gates (the proposal's
+method). For the paper: the hard one-hot write is what lets the memory path start learning
+at all here, consistent with the 2026-10-15 pilot16 finding.
 
 ## 2026-10-25 P11 lr 1e-4 — runs/step1/p11_lr1e-4_controller_s0
 
@@ -148,8 +154,11 @@ path is active); at 1e-4 the peak holds.
 Config: target.yaml --set train.lr=1e-4 --set model.fast=true, controller, seed 0, wd 0.1.
 Prediction if true: later breakthrough (lr 3x smaller), then no decline. Also serves as the
 lower point of the step-5 lr grid.
-Result:
-Decision:
+Result: **dead at step 4000** (kill rule): val recall 0.03 %, write_frac 0.000 (gate never
+opened), loss 8.313 flat.
+Decision: **prediction failed.** lr 1e-4 is too low to open the write gate within 4000 steps
+on this cosine schedule; it is the lower edge of the step-5 grid, not a candidate for the
+target. The sweep's lr grid should be {3e-4, 1e-3} plus one between, not below 3e-4.
 
 ## 2026-10-25 P9b decay except embeddings — runs/step1/p9b_noembdecay_controller_s0
 
