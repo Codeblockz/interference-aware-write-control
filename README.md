@@ -50,6 +50,8 @@ python experiments/run.py ... --resume          # continue a killed run from its
 python experiments/progress.py runs/step1 --watch 300   # status table: step, s/step, ETA, loss, val recall, gate stats
 python experiments/curves.py runs/step1        # loss / recall / gnorm / write-fraction curves -> runs/step1/curves.png
 python experiments/bench_step.py experiments/configs/target.yaml   # s/step for the write-loop speedup work
+python experiments/analysis/cost.py runs --md   # replication cost: s/step, minutes, eval wall, peak MB per writer; sweep projection
+python experiments/jobq.py jobs.txt --max 3 --free-gb 8   # bounded launcher (one run.py command per line)
 python experiments/aggregate.py runs/final --pair controller recency
 python experiments/plot.py runs/final --out paper/figures/final.png
 bash paper/build.sh RP3
@@ -94,3 +96,9 @@ Jupyter kernel: `jhu-742`. Keep datasets under `~/datasets/`, not in the vault.
   lr 3e-4: controller 17% val recall at step 2500, recency at chance. The earlier `pilot` failure
   was the 4-layer / lr 1e-3 setting. Gate statistics show the controller writes nothing
   (write_frac 0.000) for the first ~1000+ steps; the plateau ends when the write gate reopens.
+- 2026-10-25 (cost, RTX 5090, 2-3 runs sharing the GPU): target-size run (B 64, T 512, S 32,
+  2 layers, 8000 steps) on the fast path: controller 0.25 s/step, 34 min; ablation 0.28, 38 min;
+  residual 0.21, 28 min; recency / pair-only recency / position 0.16, 21 min; eager controller
+  0.78 s/step, 105 min. Test evals on 10k sequences: 9 s at L=512, 31 s at 1024, 112 s at
+  2048 (controller). Peak 4.0-4.6 GB per run. Full sweep (108 runs) projects to ~50 GPU-h,
+  ~17 h wall at three concurrent. `experiments/analysis/cost.py` recomputes this from results.json.
