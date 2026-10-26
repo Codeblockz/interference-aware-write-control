@@ -532,9 +532,42 @@ mainly on updates.}
 second for every writer, in the format of the cost columns of
 Table~\ref{tab:pilot}.}
 
-\textit{Hyperparameter selection.} \pending{validation recall at $N = 64$,
-$S = 32$ for each writer across the learning-rate grid and controller hidden
-sizes tried, with the selected values.}
+\textit{Hyperparameter selection.} Table~\ref{tab:hparams} gives the
+validation recall of the best checkpoint at $N = 64$, $S = 32$, seed 0, for
+each writer across the learning-rate grid $\{3\times10^{-4}, 6\times10^{-4},
+10^{-3}\}$ (a probe at $10^{-4}$ never left chance within 8000 steps) and, for
+the controller, hidden sizes $\{32, 64, 128\}$ at $3\times10^{-4}$. Selected:
+controller $3\times10^{-4}$ with hidden size 32; the no-interference ablation
+$10^{-3}$ with hidden size 32 (it shares the controller's architecture and
+differs only in the removed features); residual cache $6\times10^{-4}$; the
+recency writers and position activation $3\times10^{-4}$ (the latter is at
+chance at every learning rate because it writes at every position at this
+density). Each cell is one seed, and the write policy a run settles into is
+stochastic (the "Capacity ceiling" paragraph of Section~\ref{sec:protocol}), so neighbouring cells can differ by
+more than the seed spread; the sweep's three seeds are the confirmation. The
+hidden-size-32 controller is also the only controller run whose validation
+recall rises monotonically to the end of the schedule.
+
+\begin{table}[t]
+\caption{Hyperparameter selection: validation recall (\%) of the best
+checkpoint at $N = 64$, $S = 32$, seed 0. Bold marks the selected value.}
+\label{tab:hparams}
+\centering
+\begin{tabular}{lccc}
+\toprule
+writer & lr $3\times10^{-4}$ & $6\times10^{-4}$ & $10^{-3}$ \\
+\midrule
+controller (hidden 64) & \textbf{19.0} & 20.9 & 17.6 \\
+no-interference (hidden 64) & 19.4 & 19.0 & \textbf{27.7} \\
+residual cache & 0.1 & \textbf{37.2} & 0.2 \\
+pair-only recency & \textbf{40.1} & 40.1 & 40.0 \\
+position activation & \textbf{0.0} & 0.0 & 0.0 \\
+\midrule
+controller hidden (lr $3\times10^{-4}$) & 32 & 64 & 128 \\
+ & \textbf{32.5} & 19.0 & 24.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{table*}[t]
 \caption{Pilot run, seed 0, 24 associations and 16 slots, trained at length

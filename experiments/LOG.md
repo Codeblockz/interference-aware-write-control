@@ -41,6 +41,13 @@ min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-2
 
 ## Status
 
+- 2026-10-26 01:20: **Steps 4 and 5 closed; per-writer settings frozen in
+  `experiments/configs/selected.yaml`.** S5 grid (12 runs, 23:01-01:18, one seed): controller
+  lr 3e-4, hidden 32 (32.5 % val, monotone to step 8000, vs 19 % at hidden 64); ablation lr
+  1e-3 (27.7 %), hidden 32 to match the controller; residual lr 6e-4 (37.2 %, writes 94 % of
+  pairs and 6 % of filler); pair-only recency flat at 40 % at every lr; position 0 % at every
+  lr (writes every position). All single-seed; the sweep's three seeds are the confirmation.
+  Next: step 6, the sweep, S = 64 column first, through `jobq.py`; N = 128 at length 1024.
 - 2026-10-25 22:00: **Step 1 closed; target.yaml frozen.** C3 confirm (9 runs, best-val
   selection, 3 seeds): pair-only recency 40.1 % (ceiling 43 %), no-interference ablation 33 %
   on 2/3 seeds (19 % on the third), controller 18-19 % on 3/3, naive recency 0 %. H1 and H2
@@ -49,24 +56,12 @@ min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-2
   the gate init (P8), not fixable by soft gates or lr 1e-4 (both never learn). Protocol now:
   best-validation checkpoint, N = 128 at length 1024, pair-only recency as the non-learned
   reference. Paper protocol text updated and builds (`paper/Ellis-RP3.pdf` draft).
-  GPU time today ≈ 14.5 h across 25 runs. Next: steps 4-5, then the sweep (S = 64 first).
 
----|---|---|
-| P0 controller s0 / recency s0 | eager | 105 / 27 |
-| C1 controller s1 / s2 | fast | 33 / 30 |
-| C1b recency s1 / s2 | fast | 22 / 22 |
-| P1 vocab 2048 | eager | 105 |
-| P1b vocab 4096 | fast | 31 |
-| P8 write bias | fast | 22 |
-| P9 wd 0 | fast | 24 |
-| P9b, C2 s1, C2 s2 | fast | running |
-| **total so far** | | **~7.7 GPU-h** across 13 runs |
-
-Method / protocol changes today (also in README "Decisions log" and git): fast path
+Method / protocol changes 2026-10-25 (also in README "Decisions log" and git): fast path
 (`model.fast`, numerically identical); `write_bias_init` option (default 0, unused);
-`decay_embeddings` option; eval batch scaled by length; `--eval_only`. No change to the
-controller's features, gates, or the task. Candidate protocol change pending P9b: weight
-decay setting for the sweep.
+`decay_embeddings` option; eval batch scaled by length; `--eval_only`; best-validation
+checkpoint selection; pair-only recency writer added. No change to the controller's
+features, gates, or the task. Per-run GPU time: `python experiments/analysis/cost.py runs --md`.
 
 ---
 
@@ -86,8 +81,43 @@ confirmed by the sweep's three seeds, not by this grid alone.
 Config: target.yaml --set model.fast=true --set train.lr={6e-4,1e-3} for controller,
 no_interference, residual, pair_recency, position; --set model.controller_hidden={32,128}
 for controller at lr 3e-4. Twelve runs, queue, three at a time.
-Result:
-Decision:
+Result (12 runs, 2026-10-25 23:01 - 10-26 01:18, 20-35 min each at three concurrent; the
+3e-4 column is C3/S4 seed 0; val = best-checkpoint validation recall, %; test 512 in
+parentheses; gates at the best checkpoint):
+
+| writer | lr 3e-4 | lr 6e-4 | lr 1e-3 | best step / write_frac / pairs written / filler written |
+|---|---|---|---|---|
+| controller (hidden 64) | 19.0 (18.8) | 20.9 (21.0) | 17.6 (17.6) | 6e-4: 2500 / 0.09 / 0.32 / 0.03; collapses 20 → 2.5 % at step 3000, ends 17.2 |
+| no_interference (hidden 64) | 19.4 (19.1) | 19.0 (19.1) | **27.7** (27.5) | 1e-3: 5500 / 0.07 / 0.33 / 0.01 |
+| residual | 0.1 (0.1) | **37.2** (37.1) | 0.2 (0.2) | 6e-4: 8000 / 0.23 / **0.94** / 0.06, monotone from step 4000 |
+| pair_recency | 40.1 | 40.1 | 40.0 | ceiling policy; the backbone is all that trains |
+| position | 0.0 | 0.0 | 0.0 | write_frac 1.00 at every lr: writes every position by construction |
+
+| controller hidden (lr 3e-4) | 32 | 64 | 128 |
+|---|---|---|---|
+| val (test 512) | **32.5** (32.3) | 19.0 (18.8) | 24.6 (24.9) |
+| best step | 8000 (still rising: 18 / 29 / 31.5 / 32.3 / 32.5 at 3k-7k) | 3000 | 6500 |
+| pairs / filler written | 0.35 / 0.002 | 0.33 / 0.01 | 0.35 / 0.03 |
+
+Predictions: "at least one writer moves off 3e-4" held (ablation → 1e-3, residual → 6e-4);
+"hidden 32 within 2 pp of 64" failed by +13.5 pp, and in the direction of the smaller
+network, which is also the only controller run with no post-peak decline. One seed each, so
+a ±15 pp swing between neighbours is within the basin noise recorded up front; the hidden-32
+curve shape (monotone, filler rate 0.2 %) is the part that looks like more than noise.
+Protocol note: the hidden grid ran at 3e-4 concurrently with the lr grid instead of after
+the lr choice; since the controller's chosen lr is 3e-4 the pre-registered order is satisfied
+in effect, not in time.
+Decision (frozen in `experiments/configs/selected.yaml`, read by the sweep launcher):
+controller lr 3e-4, hidden 32 (3e-4 vs 6e-4 is 1.9 pp, inside the C3 seed spread, and the
+6e-4 and 1e-3 curves are unstable); no_interference lr 1e-3, hidden 32 (the ablation differs
+from the controller only in the removed features, so it shares the architecture; its lr is
+its own grid winner); residual lr 6e-4 (one seed reaches 37 % = 0.94 of pairs written, close
+to the pair-only ceiling; at 3e-4 only 1/3 seeds found a 24 % policy); pair_recency and
+recency lr 3e-4 (no gate to learn; flat); position lr 3e-4 (nothing to choose: 0 % at
+every lr, the lr cannot change a writer that writes every position). Residual's
+`init_threshold` / `sharpness` stay unexposed: the lr grid did help. Residual and the
+controller remain basin-stochastic, which the sweep's three seeds will report as spread,
+not hide. Step 5 done.
 
 ## 2026-10-25 S4 residual and position writers at the target — runs/step2/s4_<writer>_s{0,1,2}
 

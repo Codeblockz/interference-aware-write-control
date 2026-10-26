@@ -48,9 +48,11 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
 - [x] **4. Train and tune the residual and position writers.** (2026-10-25: 3 seeds each at the target; residual 24 % on 1/3 seeds, chance on 2/3; position 0 % on 3/3; tuning folds into step 5. LOG "S4".) Validation-tune the residual
       threshold/beta and the position schedule at N=64, S=32. Done when each has a results.json
       at the target and its gate statistics look sane (not all-write, not never-write).
-- [ ] **5. Hyperparameter selection** for every writer: lr grid {1e-3, 3e-4, 1e-4}, controller
-      hidden {32, 64, 128}, at N=64, S=32 on validation. Record the table for the
-      "Hyperparameter selection" placeholder.
+- [x] **5. Hyperparameter selection** for every writer (2026-10-26: lr grid {3e-4, 6e-4, 1e-3}
+      (1e-4 never learns, P11), controller hidden {32, 64, 128}, one seed at N=64, S=32 on
+      validation; chosen values in `experiments/configs/selected.yaml`: controller 3e-4 / hidden 32
+      (32.5 %), ablation 1e-3 / hidden 32 (27.7 %), residual 6e-4 (37.2 %), the rest 3e-4. Table in
+      LOG "S5" and in the paper's "Hyperparameter selection" paragraph.)
 - [ ] **6. Run the sweep** (90 runs) plus the delay sweep. **N=128 cannot be generated at train
       length 512** (384 context tokens + 128 queries > 512): use L=1024 for the N=128 column
       (test at 1024 / 2048 / 4096) or drop it; fix the paper's protocol text to match. The

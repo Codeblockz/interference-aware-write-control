@@ -1,0 +1,17 @@
+# Per-writer hyperparameters chosen on validation at N=64, S=32, seed 0 (LOG "S5",
+# 2026-10-26) and frozen for the sweep. Applied on top of target.yaml as --set overrides
+# by the sweep launcher; the keys are run.py --set paths. Do not edit after the sweep starts.
+controller:
+  train.lr: 3.0e-4
+  model.controller_hidden: 32
+no_interference:
+  train.lr: 1.0e-3
+  model.controller_hidden: 32     # same architecture as the controller; only the features differ
+residual:
+  train.lr: 6.0e-4
+recency:
+  train.lr: 3.0e-4
+pair_recency:
+  train.lr: 3.0e-4
+position:
+  train.lr: 3.0e-4                # 0 % at every lr tried; nothing to select

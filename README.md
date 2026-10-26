@@ -102,3 +102,8 @@ Jupyter kernel: `jhu-742`. Keep datasets under `~/datasets/`, not in the vault.
   0.78 s/step, 105 min. Test evals on 10k sequences: 9 s at L=512, 31 s at 1024, 112 s at
   2048 (controller). Peak 4.0-4.6 GB per run. Full sweep (108 runs) projects to ~50 GPU-h,
   ~17 h wall at three concurrent. `experiments/analysis/cost.py` recomputes this from results.json.
+- 2026-10-26: per-writer hyperparameters frozen for the sweep in `experiments/configs/selected.yaml`
+  (one-seed validation grid at N=64, S=32, LOG "S5"): controller lr 3e-4 with hidden 32 (32.5 %
+  val vs 19 % at hidden 64), no-interference ablation lr 1e-3 with hidden 32, residual lr 6e-4,
+  recency / pair-only recency / position lr 3e-4. `target.yaml` itself is unchanged; the sweep
+  launcher applies `selected.yaml` as `--set` overrides per writer.
