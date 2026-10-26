@@ -7,7 +7,9 @@ Per (writer, code path, config shape): runs, mean s/step, mean train minutes, me
 seconds per length, peak GPU MB, GPU name. s/step is train_seconds / steps_done, which
 includes the periodic validation evals and checkpoint writes (what a wall clock sees).
 Runs that shared the GPU with others are slower than a run alone; the log notes how many
-ran concurrently. Also prints a projection for the sweep at the measured rates.
+ran concurrently. Path "eager*" marks runs from before the 2026-10-25 instrumentation: they
+have training seconds, throughput, eval wall and peak memory, but no start/end timestamps,
+GPU name or commit hash (all were on the same RTX 5090). Also prints a sweep projection.
 """
 
 from __future__ import annotations
@@ -22,11 +24,13 @@ def main(root: Path, md: bool, sweep_runs: int, sweep_steps: int, concurrency: i
     groups = defaultdict(list)
     for f in sorted(root.rglob("results.json")):
         r = json.loads(f.read_text())
-        if r.get("status") != "done" or not r.get("history") or not r.get("train_seconds"):
-            continue  # old-format or eval-only re-runs without timing
+        legacy = "status" not in r  # before 2026-10-25 instrumentation: no timestamps/gpu/commit, timing only
+        if (not legacy and r.get("status") != "done") or not r.get("history") or not r.get("train_seconds"):
+            continue  # unfinished, or an eval-only re-run without timing
         m, d, t = r["config"]["model"], r["config"]["data"], r["config"]["train"]
-        key = (r["writer"], "fast" if m.get("fast") else "eager", f"B{t['batch_size']} T{d['seq_len']} S{m['slots']} L{m['n_layers']}")
-        steps = r["steps_done"] or r["history"][-1]["step"]
+        path = ("fast" if m.get("fast") else "eager") + ("*" if legacy else "")
+        key = (r["writer"], path, f"B{t['batch_size']} T{d['seq_len']} S{m['slots']} L{m['n_layers']}")
+        steps = r.get("steps_done") or r["history"][-1]["step"]
         groups[key].append({
             "s_step": r["train_seconds"] / steps, "train_min": r["train_seconds"] / 60,
             "evals": {k: v.get("wall_s") for k, v in r.get("eval", {}).items()},
@@ -52,7 +56,7 @@ def main(root: Path, md: bool, sweep_runs: int, sweep_steps: int, concurrency: i
         print(f"{'writer':16} {'path':5} {'shape':20} {'n':>2} {'s/step':>7} {'min':>5} {'steps':>5}  test-eval wall       peak MB  gpu")
         for w, path, shape, n, ss, tm, st, ev, pk, gpu in rows:
             print(f"{w:16} {path:5} {shape:20} {n:>2} {ss:7.3f} {tm:5.0f} {st:>5}  {ev:20} {pk:7.0f}  {gpu}")
-    fast = [x for k, rs in groups.items() if k[1] == "fast" for x in rs]
+    fast = [x for k, rs in groups.items() if k[1] == "fast" and k[2].startswith("B64 T512") for x in rs]
     if fast:
         s = sum(x["s_step"] for x in fast) / len(fast)
         total_h = sweep_runs * sweep_steps * s / 3600

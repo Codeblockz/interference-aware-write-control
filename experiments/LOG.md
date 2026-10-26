@@ -10,6 +10,26 @@ Tools: `python experiments/progress.py runs/step1 --watch 300` (status table wit
 `--set key=value` on `run.py` for one-variable probes, `--resume` after a kill,
 `--init_from <best.pt>` for curriculum.
 
+## Time ledger for replication
+
+Regenerate the per-run cost table with `python experiments/analysis/cost.py runs --md`; it reads
+every results.json (runs from before 2026-10-25 are marked `eager*`: timing, throughput, eval
+wall and peak memory only, no timestamps / GPU name / commit; all were on the same RTX 5090).
+
+Session spans from git commit times (work time, not GPU time):
+
+| date | span | what |
+|---|---|---|
+| 2026-10-15 | 22:17-23:55 | scaffold, data, model, first learnability fixes |
+| 2026-10-16 | 00:18-00:54 | pilot16 runs, controller cold-start fix |
+| 2026-10-24 | 12:47-21:21 | RP2 paper to LaTeX, placeholders, block diagram |
+| 2026-10-25 | 15:55-23:05+ | step 1 search, instrumentation, fast path, confirm stages, steps 4-5 |
+
+Pre-instrumentation GPU runs (from results.json): pilot16 controller 16 min, ablation 15 min,
+recency 7 min (4000 steps, T=128); `pilot` controller (4 layers) did not finish, recency 32
+min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-25 GPU total
+≈ 20 h across 37 finished runs by 23:00, plus the twelve S5 runs in flight.
+
 ## Definitions (step 1)
 
 - **chance**: val recall < 0.5 % (loss ≈ ln(vocab/2); 8.32 at vocab 8192, 6.93 at 2048).
