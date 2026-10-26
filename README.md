@@ -52,6 +52,7 @@ python experiments/curves.py runs/step1        # loss / recall / gnorm / write-f
 python experiments/bench_step.py experiments/configs/target.yaml   # s/step for the write-loop speedup work
 python experiments/analysis/cost.py runs --md   # replication cost: s/step, minutes, eval wall, peak MB per writer; sweep projection
 python experiments/jobq.py jobs.txt --max 3 --free-gb 8   # bounded launcher (one run.py command per line)
+python experiments/sweep.py --n 64 > runs/sweep/jobs_n64.txt   # step 6 job list (frozen per-writer settings; rerun to skip done / resume crashed)
 python experiments/aggregate.py runs/final --pair controller recency
 python experiments/plot.py runs/final --out paper/figures/final.png
 bash paper/build.sh RP3

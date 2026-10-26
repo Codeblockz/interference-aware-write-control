@@ -183,8 +183,9 @@ def main():
         ecfg = MQARConfig(**{**cfg["data"], "seq_len": L})
         test = splits["test"] if L == data_cfg.seq_len else make_splits(ecfg, 1, 1, cfg["n_test"], seed=args.seed)["test"]
         t0 = time.perf_counter()
-        # Logits are (B, L, vocab); keep B*L fixed so long-length evals do not blow the memory.
-        ev = evaluate(model, test, device, batch_size=max(8, 128 * data_cfg.seq_len // L), bf16=tcfg.bf16)
+        # Logits are (B, L, vocab); fix the token budget per eval batch (64k tokens = 128 x 512,
+        # the budget every run so far used) so long-length evals do not blow the memory.
+        ev = evaluate(model, test, device, batch_size=max(8, 65536 // L), bf16=tcfg.bf16)
         per_ex = ev.pop("per_example")
         np.save(out / f"per_example_L{L}.npy", per_ex)
         ev["wall_s"] = time.perf_counter() - t0

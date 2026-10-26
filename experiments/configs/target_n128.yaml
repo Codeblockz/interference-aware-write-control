@@ -1,0 +1,29 @@
+# Sweep N=128 column: 128 queried + 32 updates + 32 distractors (updates = distractors = N/4),
+# train length 1024 because 384 context tokens + 128 queries do not fit in 512 (PLAN step 6,
+# LOG "Decisions 2026-10-25"). Everything else identical to target.yaml; tests at 2x and 4x.
+n_train: 100000
+n_val: 5000
+n_test: 10000
+data:
+  vocab_size: 8192
+  seq_len: 1024
+  num_kv_pairs: 128
+  num_updates: 32
+  num_distractors: 32
+  power_a: 0.01
+  min_delay: 0
+model:
+  d_model: 256
+  n_layers: 2
+  n_heads: 4
+  slots: 32
+  mem_dim: 128
+  writer: controller
+train:
+  steps: 8000
+  batch_size: 64
+  lr: 3.0e-4
+  warmup: 200
+  eval_every: 500
+  eval_batches: 10
+eval_lengths: [2048, 4096]

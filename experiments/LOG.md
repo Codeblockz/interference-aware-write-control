@@ -65,6 +65,43 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## 2026-10-26 S6 the sweep — runs/sweep/<writer>_S<S>_N<N>_s<seed>
+
+Purpose (PLAN step 6, paper Table II, H1 and H2): 6 writers x S {32, 64, 128} x N {64, 128} x
+3 seeds = 108 runs. N = 64 on `target.yaml` (length 512, tests 512 / 1024 / 2048); N = 128 on
+`target_n128.yaml` (128 + 32 + 32, length 1024, tests 1024 / 2048 / 4096). Per-writer
+hyperparameters from `selected.yaml`, applied by `experiments/sweep.py`, which writes the job
+list for `jobq.py` (three concurrent; a regenerated list skips finished runs and resumes
+crashed ones from ckpt.pt). Order: N = 64 column first with S = 64 before 128 before 32, then
+N = 128. Best-validation checkpoint; paired bootstrap over the 10k test sequences
+(per_example_L*.npy) decides H1 and H2.
+Pre-flight (runs/preflight, 2026-10-26 07:00-07:25): N = 128 at S = 128 trains on the fast path
+for controller, pair_recency (pair block 384 confirmed: writes 100 % of pairs, 0 % of filler)
+and position; test evals at 1024 / 2048 / 4096 on 10k sequences take 16 / 61 / 228 s; train
+peak 8.3 GB at length 1024 (4.2 GB at 512); solo 0.34 s/step at length 1024 and S = 128
+(0.12 at 512). Eval batch changed to a fixed 64k-token budget (identical to every run so far
+at length 512; halves the batch for the length-1024 column, which otherwise spiked to ~20 GB
+at the train-length test eval).
+Projection: N = 64 column 54 runs x ~30 min / 3 ≈ 9-10 h wall; N = 128 column 54 runs x
+~80-90 min / 3 ≈ 25-27 h wall; ≈ 70 GPU-h total.
+Hypotheses and predictions (ceilings from `analysis/ceiling.py`: pair-only FIFO 43 / 81 / 100 %
+at N = 64, S = 32 / 64 / 128; 24 / 43 / 81 % at N = 128):
+- pair_recency lands within 5 pp of its ceiling at every cell, flat in length (it did at S = 32).
+- naive recency and position stay below 5 % at every cell (hold only the last S tokens).
+- controller and ablation: bimodal across seeds as at S = 32 (good basin found on 1-3 seeds).
+  H1 (controller beats the best non-learned writer at the same S) is predicted to **fail at
+  S = 32 and S = 64** on the three-seed mean, because the controller at S = 32 admitted only
+  35 % of pairs; at S = 128, where every pair fits, it is a coin flip whether the controller's
+  update handling beats FIFO. H2 (interference features help): predicted **not supported** at
+  any S; the ablation matched or beat the controller at S = 32 (33 vs 19 %).
+- residual: bimodal (chance or near pair_recency), 1-2 of 3 seeds in the good basin per cell.
+- N = 128: every writer at or below its (lower) ceiling; the same ordering as N = 64.
+A result that would change the plan: the controller beating pair_recency at S = 64 on all
+three seeds (H1 holds where the task is not capacity-bound), or the controller failing to
+beat naive recency anywhere (the learned gate is worse than FIFO even with headroom).
+Result:
+Decision:
+
 ## 2026-10-25 S5 hyperparameter selection at the target — runs/step3/s5_<writer>_lr<lr>_s0, s5_controller_h{32,128}_s0
 
 Purpose (PLAN step 5, paper "Selection" paragraph): per writer, choose the learning rate from
