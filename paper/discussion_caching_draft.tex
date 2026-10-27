@@ -1,0 +1,46 @@
+% Draft paragraphs for Section V (discussion), to be placed after the interpretation of
+% Table II. Written 2026-10-27 in the key-skew worktree; references verified
+% (refs.bib entries belady1966study, sleator1985amortized, lykouris2018competitive,
+% song2020lrb, einziger2017tinylfu). Numbers from the N = 64 column and S6b.
+
+\textit{The writer is an online cache.} The slot memory is a cache of $S$
+entries; each incoming pair is an insertion request that must be accepted or
+dropped before the next token arrives, with no look-ahead. In that vocabulary
+pair-only recency is FIFO eviction behind a perfect admission filter, the
+capacity ceiling of Section~\ref{sec:protocol} is Belady's offline
+optimum~\cite{belady1966study}, and H1 asks whether a learned admission policy
+can beat FIFO online. Sleator and Tarjan~\cite{sleator1985amortized} showed
+that no deterministic online eviction rule is better than a factor of $S$
+from the offline optimum in the worst case, and that LRU and FIFO meet that
+bound; the sharper point for this task is that when future requests are
+independent of the past, an online policy has nothing to condition on, and
+the only margin left is admission: rejecting tokens that will never be
+queried. In MQAR as generated here every queried key is drawn uniformly from
+the key vocabulary and every distractor key from the same pool, so at write
+time a distractor is indistinguishable from a pair that will be queried, and
+an update is recognizable only by its key already being stored. The
+parameter-free rule therefore sits at the online optimum up to update
+handling, and the sweep measures how close a learned gate gets to it: the
+input-only ablation at the controller's learning rate comes within 4~pp at
+both budgets, and the interference features move the gate away from it. Seen
+this way the negative result is the expected one, and the study's
+contribution is the measurement of the gap and of its cause, under-admission
+of pairs, rather than the direction of the sign.
+
+\textit{Where a learned writer could win.} The same theory says when
+learning should pay: when something observable at write time predicts reuse.
+The learned-caching literature is built on exactly that condition. Lykouris
+and Vassilvitskii~\cite{lykouris2018competitive} give an eviction rule whose
+competitive ratio falls with the error of a next-use predictor and never
+exceeds the no-advice bound; Song et al.~\cite{song2020lrb} train a predictor
+of Belady's decision from features of the request stream; and TinyLFU
+\cite{einziger2017tinylfu} is a frequency-based admission filter in front of
+a conventional eviction rule, which is structurally what our controller is.
+All three assume a skewed, temporally correlated request stream. \pending{The
+key-skew experiment (Section~\ref{sec:skew}) tests this directly: queried keys
+drawn from a Zipf distribution over the key vocabulary and distractors from
+its cold tail, so that the key embedding alone predicts admission. Report
+whether the learned writers overtake pair-only recency as the skew grows, and
+at what skew.} A writer that could exploit such structure would need the
+signal that our features omit: not the conflict between the incoming pair and
+the stored ones, but the prior probability that this key will be asked for.
