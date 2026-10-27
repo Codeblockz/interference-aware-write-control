@@ -48,12 +48,13 @@ two of three seeds (distractor admission 0.50 and 0.24 against pair admission
 0.91 and 0.90; the third seed never left write-everything), the input-only
 ablation on one of three, and at the uniform distribution all three controller
 seeds converged toward admitting every token, which is FIFO. But pair-only
-recency trained on the same schedule and distribution scores 79.6\% (three
-seeds within 1~pp), up from 72.7\% at a third of the schedule, and the
-controller finished 1~pp behind it on its two good seeds (78.5 and 78.5) and
-16~pp behind on the third. \pending{Attribute the non-learned writer's gain
-between schedule and skew from its uniform-distribution 12k control (three
-runs, queued 2026-10-27 06:40).} At this scale the
+recency gains from the skewed distribution too, 79.6\% against 76.4\% at the
+uniform one on the same schedule (three seeds within 1~pp in each), because
+the skew makes the read easier for every writer. Against that matched control
+the controller trails by 7.6~pp at the uniform distribution and by 1.1~pp on
+its two good seeds at the skewed one (78.5 against 79.6), with the third seed
+16~pp behind. The learned rejection therefore closes most of the gap to the
+non-learned rule where it is learned, and does not cross it. At this scale the
 learned rejection buys nothing: FIFO loses about 2.4 of 16 slots to
 distractors, and the controller gives up 10\% of pairs to reject half of them.
 Two further points carry back to the sweep. The controller gained 18~pp from

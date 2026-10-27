@@ -197,6 +197,13 @@ skew (at 4k the skew made no difference to it: 72.4 vs 72.7). Three runs queued 
 within 2 pp of 79.6; if it stays near 72, the skew eases the read and the controller's
 skew gain (68.8 → 73.2 mean, 78.5 on good seeds) is partly the same effect. Either way H1
 fails at a matched schedule; this only sets how the paragraph attributes the gains.
+Control result (3 runs, 06:30-07:03, 0 failures): pair_recency at skew 0 / 12k = 76.3, 76.3,
+76.7 (mean 76.4). Prediction half-held: the 72.7 → 79.6 gain splits into +3.7 from the
+schedule and +3.2 from the skew. Final attribution at 12k: controller trails pair_recency by
+7.6 pp at skew 0 (68.8 vs 76.4) and by 1.1 pp on its two good seeds at skew 2 (78.5 vs 79.6;
+6.4 pp on the three-seed mean). So the learned distractor rejection does narrow the gap to
+the non-learned rule by ~6 pp where it is learned, but not past zero. Closed: S7p done, no
+scale-up, paragraph final in paper/discussion_caching_draft.tex.
 
 ## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
 
