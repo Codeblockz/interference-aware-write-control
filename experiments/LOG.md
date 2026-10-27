@@ -132,6 +132,33 @@ caching-theory section is reframed: the information is there and this gate canno
 which is a stronger and more specific negative result; the S = 64 scale-up (27 runs) is
 dropped. If distractor admission falls clearly below pair admission and recall passes 72 %,
 the scale-up goes ahead.
+Follow-up result (3 runs at 12 000 steps, 00:52-02:34, 0 failures; test recall at 128;
+admission pairs / distractors / updates / filler at the best checkpoint):
+
+| run | recall | best step | admission |
+|---|---|---|---|
+| controller, skew 2, 12k | **78.5** | 11 500 | 0.91 / **0.50** / 0.96 / 0.02 |
+| no_interference, skew 2, 12k | 67.1 | 11 000 | 0.81 / 0.80 / 0.76 / 0.01 |
+| controller, skew 0, 12k (control) | 69.7 | 12 000 | 0.99 / 0.99 / 0.99 / 0.01 |
+| pair_recency (any skew, 4k) | 72.4-72.7 | - | 1 / 1 / 1 / 0 |
+
+Both pre-registered conditions for the scale-up are met, on one seed: the controller's
+distractor admission fell from 0.65 to 0.50 while pair admission rose to 0.91, and its
+recall (78.5) passes pair-only recency (72.7) by 5.8 pp. The schedule, not the information,
+was the limit at 4k. Two further things on one seed each: (a) the ablation at the same
+schedule does not separate distractors (0.80 vs 0.81) and ends 11 pp below the controller,
+so here the interference features do appear to matter; (b) the skew-0 control at 12k
+converges to write-everything (0.99 / 0.99) and 69.7, i.e. to FIFO, which is the online
+optimum without a reuse signal, exactly as the caching argument says.
+Implication for the sweep: the target runs used 8000 steps with several learned runs still
+rising at the last eval (S5 controller h32, S6 controller at S = 64 / 128); the learned
+writers may be under-trained there too, which the paper must say and which argues for a
+longer schedule in any scale-up, matched for every writer.
+Decision: replicate before any claim (the rule since P9). Seeds 1 and 2 of the three 12k
+conditions plus pair_recency at 12k (schedule control), 8 runs, queued now, same footprint.
+If the controller beats pair_recency at skew 2 on 3/3 seeds and the ablation does not, the
+scale-up at N = 64, S = 64 (skew 0 vs 2, 12k steps, controller / ablation / pair_recency,
+3 seeds, 18 runs, ~9 h) is launched after the N = 128 column, pre-registered as S7.
 
 ## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
 
