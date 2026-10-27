@@ -72,6 +72,138 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## 2026-10-27 S7p key-skew pilot (worktree key-skew-test) — runs/skew/<writer>_k<skew>_s0
+
+Why (Ryan, 23:30: "can we test that theory, with a small test"): the caching argument says a
+learned admission policy can only beat pair-only FIFO when something at write time predicts
+future reuse. In MQAR as generated so far nothing does: keys are uniform over the key pool and
+distractor keys are drawn from the same pool, so a distractor is indistinguishable from a
+queried pair when it arrives (note: `power_a` shapes query *delay*, not key frequency; the
+"skew" I described to Ryan at 23:20 as already present was wrong). New generator option
+`data.key_skew` (default 0 = unchanged): queried keys drawn without replacement with
+p ∝ rank^-skew over the key pool (Gumbel-top-k), distractor keys uniform over the remaining
+keys, i.e. cold. At skew 2 the queried keys have mean rank 120 of 1023 and 43 % come from the
+top 10; distractors have mean rank ~510. A writer can therefore learn "hot key → admit, cold
+key → skip" from the key embedding alone.
+Config: pilot16.yaml (16 + 4 + 4 associations, 16 slots, length 128, vocab 2048, 4000 steps,
+eager path, ~16 min, ~2 GB), controller hidden 32, lr 3e-4 for every writer (no per-writer
+selection at this scale), seed 0; skew ∈ {0, 1, 2}; writers pair_recency, controller,
+no_interference. Nine runs, one at a time with ≥ 8 GB free, beside the N = 128 column.
+Capacity: 24 writes into 16 slots; pair-only FIFO keeps the last 16 (the 4 updates plus 12 of
+the 20 context pairs, ~2.4 of them distractors), so perfect distractor rejection is worth
+about 2.4 slots ≈ 15 pp and in-place update handling a few more.
+Prediction: at skew 0 the ordering of the sweep (pair_recency > learned writers, learned
+≈ 50 % as in pilot16). At skew 2 both learned writers beat pair_recency by ≥ 10 pp, with
+filler/distractor admission near 0 and pair admission near 1; at skew 1 in between. If the
+learned writers do not overtake FIFO even at skew 2, the admission failure is not about
+information and the caching explanation is wrong for this model.
+Found on the way: filler tokens are drawn with the *global* torch RNG (`torch.randint` with
+no generator in `generate_mqar`), so a split is reproducible only through `run.py`'s
+`torch.manual_seed(seed)` and the fixed call order. Train-length test sets are generated
+before training and are identical across writers (the paired tests at the training length
+are valid); the 2x / 4x test sets are generated after training, so their filler differs
+across writers while keys, values and query positions are identical. Not changed here; to be
+fixed with a seeded `torch.Generator` in the main checkout and noted in the paper's
+protocol (pairing at the long lengths is on associations, not on filler).
+Result (9 runs, 23:29-00:51, 0 failures; test recall at 128; admission at the best checkpoint,
+which was the last step for every learned run):
+
+| writer | skew 0 | skew 1 | skew 2 | admission at skew 2: pairs / distractors / filler |
+|---|---|---|---|---|
+| pair_recency | 72.4 | 72.5 | 72.7 | 1.00 / 1.00 / 0 (by construction) |
+| controller | 51.6 | 58.9 | 63.7 | 0.69 / 0.65 / 0.007 |
+| no_interference | 52.2 | 54.7 | 63.7 | 0.69 / 0.69 / 0.006 |
+
+Prediction failed. Skew helps the learned writers (+12 pp from skew 0 to 2, both writers
+alike) but they stay 9 pp under pair-only recency, and the gate statistics say the gain is
+not from admission: at skew 2 the controller admits 69 % of queried pairs and 65 % of
+distractors, i.e. it does not tell hot keys from cold ones even though 43 % of queried keys
+come from the top 10 of 1023 and distractors sit around rank 500. The improvement with skew
+must come from the read / backbone side (fewer distinct keys to represent). So the admission
+policy is not using the one signal that would let it beat FIFO.
+Caveats: one seed; 4000 steps with validation still rising at the last eval for all six
+learned runs (best checkpoint = step 4000), so "does not learn it" and "has not learned it
+yet" are not separated. The write gate sees a 16-dim content projection of the token, which
+may be too narrow to carry key identity; this is a model-side limit, not an information one.
+Decision: one follow-up before concluding, three runs at 12 000 steps (controller and
+ablation at skew 2, controller at skew 0 as the control), same config otherwise. If the
+distractor admission at skew 2 stays within 5 pp of pair admission after 12k steps, the
+caching-theory section is reframed: the information is there and this gate cannot use it,
+which is a stronger and more specific negative result; the S = 64 scale-up (27 runs) is
+dropped. If distractor admission falls clearly below pair admission and recall passes 72 %,
+the scale-up goes ahead.
+Follow-up result (3 runs at 12 000 steps, 00:52-02:34, 0 failures; test recall at 128;
+admission pairs / distractors / updates / filler at the best checkpoint):
+
+| run | recall | best step | admission |
+|---|---|---|---|
+| controller, skew 2, 12k | **78.5** | 11 500 | 0.91 / **0.50** / 0.96 / 0.02 |
+| no_interference, skew 2, 12k | 67.1 | 11 000 | 0.81 / 0.80 / 0.76 / 0.01 |
+| controller, skew 0, 12k (control) | 69.7 | 12 000 | 0.99 / 0.99 / 0.99 / 0.01 |
+| pair_recency (any skew, 4k) | 72.4-72.7 | - | 1 / 1 / 1 / 0 |
+
+Both pre-registered conditions for the scale-up are met, on one seed: the controller's
+distractor admission fell from 0.65 to 0.50 while pair admission rose to 0.91, and its
+recall (78.5) passes pair-only recency (72.7) by 5.8 pp. The schedule, not the information,
+was the limit at 4k. Two further things on one seed each: (a) the ablation at the same
+schedule does not separate distractors (0.80 vs 0.81) and ends 11 pp below the controller,
+so here the interference features do appear to matter; (b) the skew-0 control at 12k
+converges to write-everything (0.99 / 0.99) and 69.7, i.e. to FIFO, which is the online
+optimum without a reuse signal, exactly as the caching argument says.
+Implication for the sweep: the target runs used 8000 steps with several learned runs still
+rising at the last eval (S5 controller h32, S6 controller at S = 64 / 128); the learned
+writers may be under-trained there too, which the paper must say and which argues for a
+longer schedule in any scale-up, matched for every writer.
+Decision: replicate before any claim (the rule since P9). Seeds 1 and 2 of the three 12k
+conditions plus pair_recency at 12k (schedule control), 8 runs, queued now, same footprint.
+If the controller beats pair_recency at skew 2 on 3/3 seeds and the ablation does not, the
+scale-up at N = 64, S = 64 (skew 0 vs 2, 12k steps, controller / ablation / pair_recency,
+3 seeds, 18 runs, ~9 h) is launched after the N = 128 column, pre-registered as S7.
+Replication result (9 runs, 02:35-06:29, 0 failures; all at 12 000 steps, skew 2 unless
+stated; test recall at 128; admission pairs / distractors / updates at the best checkpoint):
+
+| condition | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| pair_recency, 12k (matched control) | 79.3 | 80.2 | 79.3 | **79.6** |
+| controller, 12k | 78.5 (0.91 / 0.50 / 0.96) | 78.5 (0.90 / 0.24 / 0.91) | 62.5 (0.95 / 0.95 / 0.85, best @2500) | 73.2 |
+| no_interference, 12k | 67.1 (0.81 / 0.80 / 0.76) | 74.6 (0.91 / 0.53 / 0.92) | 66.7 (0.64 / 0.69 / 0.68) | 69.5 |
+| controller, skew 0, 12k | 69.7 (0.99 / 0.99 / 0.99) | 69.6 (0.98 / 0.98 / 0.98) | 67.1 (0.84 / 0.84 / 0.81) | 68.8 |
+
+The one-seed "win" was an unmatched-control artefact. Pair-only recency at the same 12k
+schedule and skew 2 scores 79.6, up from 72.7 at 4k: the skew makes the *read* easier for
+every writer, and the longer schedule lets the backbone use it. Against that control the
+controller is 1 pp behind on seeds 0-1 and 17 pp behind on seed 2 (bad basin, peaked at step
+2500 writing everything), the ablation 5-13 pp behind. H1 fails again at a matched schedule.
+What did replicate: with a reuse signal the controller learns distractor rejection on 2/3
+seeds (distractor admission 0.50 and 0.24 against pair admission 0.91 and 0.90), the
+ablation on 1/3 (0.53 vs 0.91), and at skew 0 all three controller seeds converge toward
+write-everything, i.e. FIFO (0.99 / 0.98 / 0.84), as the caching argument predicts. The
+learned rejection buys nothing in recall here because FIFO loses only ~2.4 slots of 16 to
+distractors while the controller gives up 10 % of pairs; the two cancel.
+Decision: pre-registered S7 criterion ("controller beats pair_recency on 3/3 seeds and the
+ablation does not") is not met; the N = 64 / S = 64 scale-up is **dropped**. What goes to
+the paper (one paragraph plus a small table in the discussion, draft updated in
+paper/discussion_caching_draft.tex): the key-skew pilot as the test of the caching
+explanation: the information makes the gate learn admission, as predicted, and the
+matched non-learned control gains as much from the easier task, so the sign does not
+flip. Two caveats carried: schedule length (the sweep's 8000 steps under-trains the learned
+writers: the controller gains 18 pp from 4k to 12k here) and the basin (1/3 controller
+seeds never leaves write-everything). Worktree branch worktree-key-skew-test handed to the
+main session for merge.
+Missing control, noticed while writing the draft paragraph (06:40): pair_recency at skew 0
+and 12k steps was not run, so its 72.7 → 79.6 gain cannot yet be split between schedule and
+skew (at 4k the skew made no difference to it: 72.4 vs 72.7). Three runs queued (seeds 0-2,
+~12 min each). Prediction: schedule, not skew, i.e. pair_recency at skew 0 / 12k lands
+within 2 pp of 79.6; if it stays near 72, the skew eases the read and the controller's
+skew gain (68.8 → 73.2 mean, 78.5 on good seeds) is partly the same effect. Either way H1
+fails at a matched schedule; this only sets how the paragraph attributes the gains.
+Control result (3 runs, 06:30-07:03, 0 failures): pair_recency at skew 0 / 12k = 76.3, 76.3,
+76.7 (mean 76.4). Prediction half-held: the 72.7 → 79.6 gain splits into +3.7 from the
+schedule and +3.2 from the skew. Final attribution at 12k: controller trails pair_recency by
+7.6 pp at skew 0 (68.8 vs 76.4) and by 1.1 pp on its two good seeds at skew 2 (78.5 vs 79.6;
+6.4 pp on the three-seed mean). So the learned distractor rejection does narrow the gap to
+the non-learned rule by ~6 pp where it is learned, but not past zero. Closed: S7p done, no
+scale-up, paragraph final in paper/discussion_caching_draft.tex.
 ## Note 2026-10-27 02:40: schedule length may under-train the learned writers (from the fork's skew pilot)
 
 The fork session's key-skew pilot (worktree branch worktree-key-skew-test, LOG entries S7p

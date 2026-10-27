@@ -92,3 +92,32 @@ def test_generation_speed():
     t0 = time.perf_counter()
     generate_mqar(cfg, 10_000, seed=0)
     assert time.perf_counter() - t0 < 10.0
+
+
+def test_key_skew_concentrates_queried_keys_and_keeps_distractors_cold():
+    import numpy as np
+    from bmem.data import MQARConfig, generate_mqar
+    base = dict(vocab_size=2048, seq_len=128, num_kv_pairs=16, num_updates=4, num_distractors=4)
+
+    def ranks(batch):
+        x = batch.inputs.numpy()
+        keys = x[:, 0:40:2]                                   # 20 context keys per row
+        answer = batch.labels.numpy() != -100
+        q = np.where(answer, x, 0)                            # label sits at the query key position
+        hot = np.zeros_like(keys, dtype=bool)
+        for i in range(keys.shape[0]):                        # per-row membership
+            hot[i] = np.isin(keys[i], q[i][q[i] > 0])
+        assert hot.sum(1).tolist() == [16] * keys.shape[0]
+        return keys[hot].mean(), keys[~hot].mean()
+
+    flat = generate_mqar(MQARConfig(**base), 200, 0)
+    skew = generate_mqar(MQARConfig(**base, key_skew=2.0), 200, 0)
+    q_flat, d_flat = ranks(flat)
+    q_skew, d_skew = ranks(skew)
+    assert abs(q_flat - d_flat) < 60                          # uniform: queried and distractor keys alike
+    assert q_skew < q_flat / 3 and d_skew > 400               # skewed: queried keys hot, distractors cold
+    same = generate_mqar(MQARConfig(**base, key_skew=0.0), 200, 0)
+    # key_skew=0 is the old path bit for bit, except filler tokens, which come from the global
+    # torch RNG (pre-existing; see LOG 2026-10-27): compare the context block and the labels.
+    assert np.array_equal(flat.inputs.numpy()[:, :40], same.inputs.numpy()[:, :40])
+    assert np.array_equal(flat.labels.numpy(), same.labels.numpy())
