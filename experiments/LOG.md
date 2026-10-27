@@ -105,8 +105,33 @@ are valid); the 2x / 4x test sets are generated after training, so their filler 
 across writers while keys, values and query positions are identical. Not changed here; to be
 fixed with a seeded `torch.Generator` in the main checkout and noted in the paper's
 protocol (pairing at the long lengths is on associations, not on filler).
-Result:
-Decision:
+Result (9 runs, 23:29-00:51, 0 failures; test recall at 128; admission at the best checkpoint,
+which was the last step for every learned run):
+
+| writer | skew 0 | skew 1 | skew 2 | admission at skew 2: pairs / distractors / filler |
+|---|---|---|---|---|
+| pair_recency | 72.4 | 72.5 | 72.7 | 1.00 / 1.00 / 0 (by construction) |
+| controller | 51.6 | 58.9 | 63.7 | 0.69 / 0.65 / 0.007 |
+| no_interference | 52.2 | 54.7 | 63.7 | 0.69 / 0.69 / 0.006 |
+
+Prediction failed. Skew helps the learned writers (+12 pp from skew 0 to 2, both writers
+alike) but they stay 9 pp under pair-only recency, and the gate statistics say the gain is
+not from admission: at skew 2 the controller admits 69 % of queried pairs and 65 % of
+distractors, i.e. it does not tell hot keys from cold ones even though 43 % of queried keys
+come from the top 10 of 1023 and distractors sit around rank 500. The improvement with skew
+must come from the read / backbone side (fewer distinct keys to represent). So the admission
+policy is not using the one signal that would let it beat FIFO.
+Caveats: one seed; 4000 steps with validation still rising at the last eval for all six
+learned runs (best checkpoint = step 4000), so "does not learn it" and "has not learned it
+yet" are not separated. The write gate sees a 16-dim content projection of the token, which
+may be too narrow to carry key identity; this is a model-side limit, not an information one.
+Decision: one follow-up before concluding, three runs at 12 000 steps (controller and
+ablation at skew 2, controller at skew 0 as the control), same config otherwise. If the
+distractor admission at skew 2 stays within 5 pp of pair admission after 12k steps, the
+caching-theory section is reframed: the information is there and this gate cannot use it,
+which is a stronger and more specific negative result; the S = 64 scale-up (27 runs) is
+dropped. If distractor admission falls clearly below pair admission and recall passes 72 %,
+the scale-up goes ahead.
 
 ## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
 
