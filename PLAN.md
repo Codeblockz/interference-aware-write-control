@@ -53,7 +53,7 @@ H1: paired bootstrap, controller minus the validation-best baseline, holds where
       validation; chosen values in `experiments/configs/selected.yaml`: controller 3e-4 / hidden 32
       (32.5 %), ablation 1e-3 / hidden 32 (27.7 %), residual 6e-4 (37.2 %), the rest 3e-4. Table in
       LOG "S5" and in the paper's "Hyperparameter selection" paragraph.)
-- [ ] **6. Run the sweep** (108 runs; launched 2026-10-26 via `experiments/sweep.py` + `jobq.py`, LOG "S6"; `target_n128.yaml` for the N=128 column) plus the delay sweep. **N=128 cannot be generated at train
+- [ ] **6. Run the sweep** (108 runs; launched 2026-10-26 via `experiments/sweep.py` + `jobq.py`, LOG "S6"; N=64 column done 19:21 with 0 failures, N=128 column (`target_n128.yaml`, one run at a time, ~38 h) queued behind the 12-run H2 same-lr check S6b) plus the delay sweep. **N=128 cannot be generated at train
       length 512** (384 context tokens + 128 queries > 512): use L=1024 for the N=128 column
       (test at 1024 / 2048 / 4096) or drop it; fix the paper's protocol text to match. The
       N=64 / S=32 cell is capacity-bound (ideal pair-only writer 43 %, see LOG "capacity
