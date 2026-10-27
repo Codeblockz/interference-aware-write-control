@@ -159,6 +159,44 @@ conditions plus pair_recency at 12k (schedule control), 8 runs, queued now, same
 If the controller beats pair_recency at skew 2 on 3/3 seeds and the ablation does not, the
 scale-up at N = 64, S = 64 (skew 0 vs 2, 12k steps, controller / ablation / pair_recency,
 3 seeds, 18 runs, ~9 h) is launched after the N = 128 column, pre-registered as S7.
+Replication result (9 runs, 02:35-06:29, 0 failures; all at 12 000 steps, skew 2 unless
+stated; test recall at 128; admission pairs / distractors / updates at the best checkpoint):
+
+| condition | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| pair_recency, 12k (matched control) | 79.3 | 80.2 | 79.3 | **79.6** |
+| controller, 12k | 78.5 (0.91 / 0.50 / 0.96) | 78.5 (0.90 / 0.24 / 0.91) | 62.5 (0.95 / 0.95 / 0.85, best @2500) | 73.2 |
+| no_interference, 12k | 67.1 (0.81 / 0.80 / 0.76) | 74.6 (0.91 / 0.53 / 0.92) | 66.7 (0.64 / 0.69 / 0.68) | 69.5 |
+| controller, skew 0, 12k | 69.7 (0.99 / 0.99 / 0.99) | 69.6 (0.98 / 0.98 / 0.98) | 67.1 (0.84 / 0.84 / 0.81) | 68.8 |
+
+The one-seed "win" was an unmatched-control artefact. Pair-only recency at the same 12k
+schedule and skew 2 scores 79.6, up from 72.7 at 4k: the skew makes the *read* easier for
+every writer, and the longer schedule lets the backbone use it. Against that control the
+controller is 1 pp behind on seeds 0-1 and 17 pp behind on seed 2 (bad basin, peaked at step
+2500 writing everything), the ablation 5-13 pp behind. H1 fails again at a matched schedule.
+What did replicate: with a reuse signal the controller learns distractor rejection on 2/3
+seeds (distractor admission 0.50 and 0.24 against pair admission 0.91 and 0.90), the
+ablation on 1/3 (0.53 vs 0.91), and at skew 0 all three controller seeds converge toward
+write-everything, i.e. FIFO (0.99 / 0.98 / 0.84), as the caching argument predicts. The
+learned rejection buys nothing in recall here because FIFO loses only ~2.4 slots of 16 to
+distractors while the controller gives up 10 % of pairs; the two cancel.
+Decision: pre-registered S7 criterion ("controller beats pair_recency on 3/3 seeds and the
+ablation does not") is not met; the N = 64 / S = 64 scale-up is **dropped**. What goes to
+the paper (one paragraph plus a small table in the discussion, draft updated in
+paper/discussion_caching_draft.tex): the key-skew pilot as the test of the caching
+explanation: the information makes the gate learn admission, as predicted, and the
+matched non-learned control gains as much from the easier task, so the sign does not
+flip. Two caveats carried: schedule length (the sweep's 8000 steps under-trains the learned
+writers: the controller gains 18 pp from 4k to 12k here) and the basin (1/3 controller
+seeds never leaves write-everything). Worktree branch worktree-key-skew-test handed to the
+main session for merge.
+Missing control, noticed while writing the draft paragraph (06:40): pair_recency at skew 0
+and 12k steps was not run, so its 72.7 → 79.6 gain cannot yet be split between schedule and
+skew (at 4k the skew made no difference to it: 72.4 vs 72.7). Three runs queued (seeds 0-2,
+~12 min each). Prediction: schedule, not skew, i.e. pair_recency at skew 0 / 12k lands
+within 2 pp of 79.6; if it stays near 72, the skew eases the read and the controller's
+skew gain (68.8 → 73.2 mean, 78.5 on good seeds) is partly the same effect. Either way H1
+fails at a matched schedule; this only sets how the paragraph attributes the gains.
 
 ## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
 

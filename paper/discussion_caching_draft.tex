@@ -36,11 +36,30 @@ exceeds the no-advice bound; Song et al.~\cite{song2020lrb} train a predictor
 of Belady's decision from features of the request stream; and TinyLFU
 \cite{einziger2017tinylfu} is a frequency-based admission filter in front of
 a conventional eviction rule, which is structurally what our controller is.
-All three assume a skewed, temporally correlated request stream. \pending{The
-key-skew experiment (Section~\ref{sec:skew}) tests this directly: queried keys
-drawn from a Zipf distribution over the key vocabulary and distractors from
-its cold tail, so that the key embedding alone predicts admission. Report
-whether the learned writers overtake pair-only recency as the skew grows, and
-at what skew.} A writer that could exploit such structure would need the
-signal that our features omit: not the conflict between the incoming pair and
-the stored ones, but the prior probability that this key will be asked for.
+All three assume a skewed, temporally correlated request stream. We tested
+this condition directly at the pilot scale (24 associations, 16 slots, length
+128, three seeds): queried keys drawn from a Zipf distribution with exponent 2
+over the key vocabulary and distractor keys from its cold remainder, so that
+the key embedding alone predicts whether a pair will be queried; every writer
+trained for 12{,}000 steps at both the skewed and the uniform distribution.
+The prediction from the caching view held on the admission side and failed on
+recall. With the reuse signal the controller learned to reject distractors on
+two of three seeds (distractor admission 0.50 and 0.24 against pair admission
+0.91 and 0.90; the third seed never left write-everything), the input-only
+ablation on one of three, and at the uniform distribution all three controller
+seeds converged toward admitting every token, which is FIFO. But pair-only
+recency trained on the same schedule and distribution scores 79.6\% (three
+seeds within 1~pp), up from 72.7\% at a third of the schedule, and the
+controller finished 1~pp behind it on its two good seeds (78.5 and 78.5) and
+16~pp behind on the third. \pending{Attribute the non-learned writer's gain
+between schedule and skew from its uniform-distribution 12k control (three
+runs, queued 2026-10-27 06:40).} At this scale the
+learned rejection buys nothing: FIFO loses about 2.4 of 16 slots to
+distractors, and the controller gives up 10\% of pairs to reject half of them.
+Two further points carry back to the sweep. The controller gained 18~pp from
+4{,}000 to 12{,}000 steps at the pilot scale, so the 8{,}000-step schedule of
+Table~\ref{tab:final} likely under-trains the learned writers, and the
+basin-dependence seen there recurs here (one seed in three). A writer that
+could turn the reuse signal into a recall gain would need to reject
+distractors without under-admitting pairs, and the budget where that trade
+pays is one where distractors cost more than a sixth of the slots.
