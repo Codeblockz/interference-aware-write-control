@@ -572,7 +572,10 @@ the input-only ablation trained at $3 \times 10^{-4}$ is the best learned
 writer in the study, 4~pp under the parameter-free reference at both
 budgets.
 
-\textit{Length generalization.} Fig.~\ref{fig:sweep}(b). Every writer with a
+\textit{Length generalization.} Fig.~\ref{fig:sweep}(b). (Test sets at
+$2\times$ and $4\times$ the training length share keys, values and query
+positions across writers but not filler tokens, which the generator draws from
+the global RNG; comparisons at those lengths are paired on associations only.) Every writer with a
 flat policy is flat in length (under 0.3~pp from 512 to 2048 at every budget).
 The controller loses 2.4~pp at $S = 64$ and 9~pp at $S = 128$, and naive
 recency loses 8~pp at $S = 128$; both are writers whose gate statistics drift

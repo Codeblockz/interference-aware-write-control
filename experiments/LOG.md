@@ -72,6 +72,23 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## Note 2026-10-26 23:35: filler tokens use the global torch RNG (found by the fork session)
+
+`generate_mqar` draws keys, values, positions and query order from a numpy Generator seeded
+with `seed`, but filler tokens from `torch.randint` with no generator (src/bmem/data.py:140),
+so filler depends on the global torch RNG state at call time. `run.py` seeds torch once and
+generates train/val/test before training, so the training-length test set is identical
+across writers and seeds-of-the-same-index, and the paired bootstraps at the training length
+(every H1/H2 number in Table II) are valid. The 2x/4x test sets are generated after training,
+when the torch RNG state differs by writer (parameter init consumes it), so at long lengths
+the pairing is on keys / values / queries only and the filler differs between writers. Filler
+is uniform noise, so the effect on recall is small, but the long-length paired comparisons
+are not exactly paired. Fix: a `torch.Generator` seeded from `seed` inside `generate_mqar`.
+Applied **after** the N = 128 column finishes so the column stays internally consistent;
+until then the paper's protocol says the length-generalization comparisons are paired on
+associations, not filler. Verified by reading the code; no run is affected at the training
+length.
+
 ## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
 
 Why (Ryan, 17:40: "we changed too many variables at a time"): the sweep's H2 comparison is
