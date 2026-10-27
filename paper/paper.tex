@@ -813,7 +813,13 @@ was the ablation's one-seed rate selection. The selection recipe, not the
 sweep, is what one seed per grid point weakens. The learned writers
 are bimodal across seeds (one of three controller seeds at $S = 128$ reached
 48\% against 75 and 78), so the three-seed means carry a spread the pooled
-bootstrap interval does not show. Five design changes (key shift, straight-through gates,
+bootstrap interval does not show. The 8000-step schedule, fixed before the
+sweep, may under-train the learned writers: several controller runs at
+$S = 64$ and $S = 128$ were still rising at the last evaluation, and a pilot
+on a skewed key distribution (Section~\ref{sec:discussion}) found that the
+controller's gate only learned to separate hot from cold keys when given three
+times the schedule. Any follow-up should match a longer schedule across
+writers. Five design changes (key shift, straight-through gates,
 content input, recency prior, $\epsilon$-safe features) were made after the
 proposal and before any baseline-vs-controller comparison; they apply to all
 writers, but they were motivated by getting the controller to learn, and the

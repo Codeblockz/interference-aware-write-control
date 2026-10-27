@@ -72,6 +72,20 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## Note 2026-10-27 02:40: schedule length may under-train the learned writers (from the fork's skew pilot)
+
+The fork session's key-skew pilot (worktree branch worktree-key-skew-test, LOG entries S7p
+there) found at pilot16 scale: at 4000 steps the learned writers trail pair-only recency at
+every skew; at 12,000 steps and strong skew the controller reaches 78.5 % vs 72.7 for
+pair-only recency, admitting 91 % of pairs and 50 % of distractors (hot-vs-cold learned),
+while the ablation at the same schedule stays at 67.1 with no separation and the skew-0
+control converges to write-everything = FIFO. One seed; replication of all conditions on
+seeds 1-2 queued there (done ~05:00). Implication for the main sweep: the frozen 8000-step
+schedule may under-train the learned writers (S5 h32 and the S=64/128 controller runs were
+still rising at the last eval); a sentence is added to the paper's limitations. Proposed S7
+(pending replication and Ryan's go): N = 64, S = 64, skew 0 vs 2, 12k steps, controller /
+ablation / pair_recency, 3 seeds, 18 runs (~9 h), queued after the N = 128 column.
+
 ## Note 2026-10-26 23:35: filler tokens use the global torch RNG (found by the fork session)
 
 `generate_mqar` draws keys, values, positions and query order from a numpy Generator seeded
