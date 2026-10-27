@@ -72,6 +72,42 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## 2026-10-27 S7p key-skew pilot (worktree key-skew-test) — runs/skew/<writer>_k<skew>_s0
+
+Why (Ryan, 23:30: "can we test that theory, with a small test"): the caching argument says a
+learned admission policy can only beat pair-only FIFO when something at write time predicts
+future reuse. In MQAR as generated so far nothing does: keys are uniform over the key pool and
+distractor keys are drawn from the same pool, so a distractor is indistinguishable from a
+queried pair when it arrives (note: `power_a` shapes query *delay*, not key frequency; the
+"skew" I described to Ryan at 23:20 as already present was wrong). New generator option
+`data.key_skew` (default 0 = unchanged): queried keys drawn without replacement with
+p ∝ rank^-skew over the key pool (Gumbel-top-k), distractor keys uniform over the remaining
+keys, i.e. cold. At skew 2 the queried keys have mean rank 120 of 1023 and 43 % come from the
+top 10; distractors have mean rank ~510. A writer can therefore learn "hot key → admit, cold
+key → skip" from the key embedding alone.
+Config: pilot16.yaml (16 + 4 + 4 associations, 16 slots, length 128, vocab 2048, 4000 steps,
+eager path, ~16 min, ~2 GB), controller hidden 32, lr 3e-4 for every writer (no per-writer
+selection at this scale), seed 0; skew ∈ {0, 1, 2}; writers pair_recency, controller,
+no_interference. Nine runs, one at a time with ≥ 8 GB free, beside the N = 128 column.
+Capacity: 24 writes into 16 slots; pair-only FIFO keeps the last 16 (the 4 updates plus 12 of
+the 20 context pairs, ~2.4 of them distractors), so perfect distractor rejection is worth
+about 2.4 slots ≈ 15 pp and in-place update handling a few more.
+Prediction: at skew 0 the ordering of the sweep (pair_recency > learned writers, learned
+≈ 50 % as in pilot16). At skew 2 both learned writers beat pair_recency by ≥ 10 pp, with
+filler/distractor admission near 0 and pair admission near 1; at skew 1 in between. If the
+learned writers do not overtake FIFO even at skew 2, the admission failure is not about
+information and the caching explanation is wrong for this model.
+Found on the way: filler tokens are drawn with the *global* torch RNG (`torch.randint` with
+no generator in `generate_mqar`), so a split is reproducible only through `run.py`'s
+`torch.manual_seed(seed)` and the fixed call order. Train-length test sets are generated
+before training and are identical across writers (the paired tests at the training length
+are valid); the 2x / 4x test sets are generated after training, so their filler differs
+across writers while keys, values and query positions are identical. Not changed here; to be
+fixed with a seeded `torch.Generator` in the main checkout and noted in the paper's
+protocol (pairing at the long lengths is on associations, not on filler).
+Result:
+Decision:
+
 ## 2026-10-26 S6b H2 same-learning-rate check — runs/sweep_h2/{no_interference_lr3e-4,controller_lr1e-3}_S{64,128}_N64_s{0,1,2}
 
 Why (Ryan, 17:40: "we changed too many variables at a time"): the sweep's H2 comparison is

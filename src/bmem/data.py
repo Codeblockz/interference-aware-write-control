@@ -40,6 +40,8 @@ class MQARConfig:
     num_updates: int = 0
     num_distractors: int = 0
     power_a: float = 0.01
+    key_skew: float = 0.0  # > 0: queried keys ~ rank^-key_skew over the key pool (Zipf); distractor
+    #                         keys uniform over the remaining keys, i.e. mostly cold. 0 = uniform (default).
     min_delay: int = 0
     random_non_queries: bool = True
 
@@ -76,6 +78,20 @@ def _choice_rows(rng: np.random.Generator, pool: np.ndarray, n_rows: int, k: int
     return pool[idx]
 
 
+def _skewed_keys(rng: np.random.Generator, pool: np.ndarray, n_rows: int, k: int, d: int, skew: float) -> np.ndarray:
+    """k queried keys per row drawn without replacement with p ~ rank^-skew (Gumbel-top-k, exact
+    Plackett-Luce sampling), then d distractor keys uniform over the keys not drawn. Returns
+    (n_rows, k + d) with the queried keys first, as _choice_rows does."""
+    logp = -skew * np.log(np.arange(1, pool.shape[0] + 1, dtype=np.float64))
+    g = rng.gumbel(size=(n_rows, pool.shape[0]))
+    order = np.argsort(-(logp[None, :] + g), axis=1)
+    queried = order[:, :k]
+    u = rng.random((n_rows, pool.shape[0]))
+    np.put_along_axis(u, queried, np.inf, axis=1)  # never pick a queried key as a distractor
+    distract = np.argsort(u, axis=1)[:, :d]
+    return pool[np.concatenate([queried, distract], axis=1)]
+
+
 def generate_mqar(cfg: MQARConfig, num_examples: int, seed: int) -> MQARBatch:
     cfg.validate()
     rng = np.random.default_rng(seed)
@@ -85,7 +101,10 @@ def generate_mqar(cfg: MQARConfig, num_examples: int, seed: int) -> MQARBatch:
     value_pool = np.arange(key_vocab_size, cfg.vocab_size)
 
     n_ctx_pairs = cfg.num_kv_pairs + cfg.num_distractors
-    all_keys = _choice_rows(rng, key_pool, N, n_ctx_pairs)
+    if cfg.key_skew > 0:
+        all_keys = _skewed_keys(rng, key_pool, N, cfg.num_kv_pairs, cfg.num_distractors, cfg.key_skew)
+    else:
+        all_keys = _choice_rows(rng, key_pool, N, n_ctx_pairs)
     all_values = _choice_rows(rng, value_pool, N, n_ctx_pairs)
     keys, values = all_keys[:, : cfg.num_kv_pairs], all_values[:, : cfg.num_kv_pairs]
 
