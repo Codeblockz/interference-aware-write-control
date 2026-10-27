@@ -8,7 +8,10 @@ seeds as dots, for N = 64; (b) recall against evaluation length at S = 64; (c) a
 writers with a learned or thresholded gate.
 """
 import argparse
+import json
+import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
@@ -20,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from plot import SERIES, TEXT, MUTED, GRID, style  # noqa: E402
 from sweep_table import load, paired, NONLEARNED, mean_recall  # noqa: E402
+from bmem.metrics import bootstrap_ci  # noqa: E402
 
 ROWS = [("controller", "Interference controller"), ("no_interference", "No-interference ablation"),
         ("pair_recency", "Pair-only recency"), ("recency", "Recency"),
@@ -31,7 +35,33 @@ def L0(n):
     return f"L{512 if n == 64 else 1024}"
 
 
-def tex_rows(runs) -> str:
+H2NAME = re.compile(r"^(?P<w>[a-z_]+)_lr(?P<lr>[0-9e.-]+)_S(?P<s>\d+)_N(?P<n>\d+)_s(?P<seed>\d+)$")
+
+
+def load_h2(root: Path) -> dict:
+    """runs/sweep_h2: (w, lr, s, n) -> seed -> record (the equal-learning-rate H2 check)."""
+    runs = defaultdict(dict)
+    for f in sorted(root.glob("*/results.json")):
+        m = H2NAME.match(f.parent.name)
+        r = json.loads(f.read_text())
+        if not m or r.get("status") != "done":
+            continue
+        r["_dir"] = f.parent
+        runs[(m["w"], m["lr"], int(m["s"]), int(m["n"]))][int(m["seed"])] = r
+    return runs
+
+
+def paired_recs(ra: dict, rb: dict, L: str):
+    seeds = sorted(set(ra) & set(rb))
+    if not seeds:
+        return None
+    per = [np.load(ra[k]["_dir"] / f"per_example_{L}.npy") - np.load(rb[k]["_dir"] / f"per_example_{L}.npy") for k in seeds]
+    pooled = np.concatenate(per)
+    lo, hi = bootstrap_ci(pooled)
+    return 100 * pooled.mean(), 100 * lo, 100 * hi, [100 * float(d.mean()) for d in per]
+
+
+def tex_rows(runs, h2=None) -> str:
     out = []
     for w, label in ROWS:
         cells = []
@@ -55,10 +85,21 @@ def tex_rows(runs) -> str:
                 seeds = ", ".join(f"{d:+.0f}" for d in r[3])
                 cells.append(f"{r[0]:+.1f} {{\\scriptsize({seeds})}}")
         out.append(f"{name} (pp) & " + " & ".join(cells) + r" \\")
+    if h2:
+        out.append(r"\midrule")
+        out.append(r"No-interference ablation at $3\times10^{-4}$ & " + " & ".join(
+            (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f}}}" if recs else "--")(h2.get(("no_interference", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
+        for lr, cget, aget, label in (("3e-4", lambda s, n: runs.get(("controller", s, n), {}), lambda s, n: h2.get(("no_interference", "3e-4", s, n), {}), "H2 at equal lr $3\\times10^{-4}$"),
+                                      ("1e-3", lambda s, n: h2.get(("controller", "1e-3", s, n), {}), lambda s, n: runs.get(("no_interference", s, n), {}), "H2 at equal lr $10^{-3}$")):
+            cells = []
+            for n, s in CELLS:
+                r = paired_recs(cget(s, n), aget(s, n), L0(n)) if cget(s, n) and aget(s, n) else None
+                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize({', '.join(f'{d:+.0f}' for d in r[3])})}}")
+            out.append(f"{label} (pp) & " + " & ".join(cells) + r" \\")
     return "\n".join(out)
 
 
-def figure(runs, out: Path, n: int = 64):
+def figure(runs, out: Path, n: int = 64, h2=None):
     fig, axes = plt.subplots(1, 3, figsize=(11, 3.2), gridspec_kw={"width_ratios": [1.2, 1, 1.1]})
     slots = sorted({s for (w, s, nn) in runs if nn == n})
     ax = axes[0]
@@ -72,6 +113,9 @@ def figure(runs, out: Path, n: int = 64):
         ax.plot(slots, means, "-", color=color, linewidth=1.8, label=label, zorder=3)
         if pts:
             ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=12, color=color, alpha=0.6, zorder=4)
+    if h2:
+        means = [np.mean([100 * r["eval"][L0(n)]["recall"] for r in h2.get(("no_interference", "3e-4", s, n), {}).values()] or [np.nan]) for s in slots]
+        ax.plot(slots, means, "--", color=SERIES["no_interference"][0], linewidth=1.6, label="Ablation at the controller's lr", zorder=3)
     ax.set_xscale("log", base=2); ax.set_xticks(slots); ax.set_xticklabels([str(s) for s in slots])
     ax.set_xlabel("slots S"); ax.set_ylabel("test recall (%)"); ax.set_ylim(-3, 103)
     style(ax, f"(a) recall at the training length, N = {n} (dots: seeds)")
@@ -107,7 +151,7 @@ def figure(runs, out: Path, n: int = 64):
     style(ax, "(c) admission at the best checkpoint")
     ax.legend(fontsize=6, frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.0))
     ax.set_ylim(0, 125); ax.set_yticks([0, 25, 50, 75, 100])
-    fig.legend(*handles, fontsize=7.5, frameon=False, loc="lower center", ncol=6)
+    fig.legend(*handles, fontsize=7.5, frameon=False, loc="lower center", ncol=7)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     fig.savefig(out, dpi=200)
 
@@ -117,14 +161,16 @@ def main():
     ap.add_argument("root")
     ap.add_argument("--fig", default=None)
     ap.add_argument("--tex", default=None)
+    ap.add_argument("--h2", default=None, help="runs/sweep_h2: equal-learning-rate H2 check")
     a = ap.parse_args()
     runs = load(Path(a.root))
-    rows = tex_rows(runs)
+    h2 = load_h2(Path(a.h2)) if a.h2 else None
+    rows = tex_rows(runs, h2)
     if a.tex:
         Path(a.tex).write_text(rows + "\n")
     print(rows)
     if a.fig:
-        figure(runs, Path(a.fig))
+        figure(runs, Path(a.fig), h2=h2)
 
 
 if __name__ == "__main__":

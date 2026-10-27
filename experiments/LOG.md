@@ -41,6 +41,13 @@ min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-2
 
 ## Status
 
+- 2026-10-26 23:00: **Sweep N = 64 column done (54 runs) and the S6b equal-lr check (12
+  runs).** H1 fails at every S (pair-only recency 70 / 100 vs controller 63.5 / 66.8 at
+  S = 64 / 128). H2 not supported: at equal lr the ablation beats the controller at both S
+  (65.8 vs 63.5; 96.0 vs 66.8); the sweep's +17.9 pp at S = 64 was the ablation's one-seed lr
+  pick. N = 128 column running one at a time since 22:48 (~38 h). Paper Table II / Fig. 2 /
+  results text filled for N = 64. Next: fill the N = 128 column, delay sweep (PLAN 6), then
+  the discussion.
 - 2026-10-26 01:20: **Steps 4 and 5 closed; per-writer settings frozen in
   `experiments/configs/selected.yaml`.** S5 grid (12 runs, 23:01-01:18, one seed): controller
   lr 3e-4, hidden 32 (32.5 % val, monotone to step 8000, vs 19 % at hidden 64); ablation lr
@@ -81,8 +88,36 @@ does not exceed its 3e-4 runs at either S (the S5 grid had it less stable at 1e-
 instead the ablation at 3e-4 matches the controller at S = 64, the H2 gap there was tuning
 and the paper says so. Either way the paper reports both the best-of-each and the same-lr
 comparison.
-Result:
-Decision:
+Result (12 runs, 19:22-22:47, 0 failures; test recall at 512, three seeds; gates at best ckpt):
+
+| run | S = 64 | S = 128 | admission (pairs / filler) |
+|---|---|---|---|
+| ablation at 3e-4 (controller's lr) | 66.4, 65.3, 65.8 (**65.8**) | 96.2, 95.9, 95.8 (**96.0**) | S64 0.70 / 0.002; S128 0.97 / 0.09 |
+| controller at 3e-4 (sweep) | 63.5 | 66.8 | S64 0.69 / 0.01; S128 0.82 / 0.13 |
+| controller at 1e-3 (ablation's lr) | 49.6, 34.2, 40.8 (41.5) | 70.8, 66.1, 76.6 (71.2) | S64 0.49-0.86 / 0.06; S128 0.95 / 0.17 |
+| ablation at 1e-3 (sweep) | 45.6 | 77.3 | S64 1.00 / 0.18 |
+
+Paired controller - ablation at equal lr (pooled CI, per-seed):
+- S = 64, both 3e-4: -2.3 pp [-2.4, -2.2] (-2.8, -1.0, -3.1). Both 1e-3: -4.1 (-7.4, -5.4, +0.6).
+- S = 128, both 3e-4: -29.2 pp (-48.6, -20.8, -18.2). Both 1e-3: -6.2 (-22.1, -3.1, +6.7).
+
+The prediction was wrong: the learning rate *was* the explanation. The sweep's "H2 holds at
+S = 64" came from the ablation sitting at its one-seed-selected lr 1e-3, where it writes every
+pair plus 18 % filler and is unstable; at 3e-4 it learns the same admission policy as the
+controller (70 % of pairs, 0.2 % filler), with a tighter seed spread (65.3-66.4 vs 62.5-64.3),
+and beats the controller by 2.3 pp on every seed. At S = 128 the ablation at 3e-4 reaches
+96 % on all three seeds, 4 pp under pair-only recency and 29 pp above the controller. The
+interference features never help at equal lr; the controller is the less stable of the two.
+Decision: H2 is **not supported** at any budget; the paper's H2 paragraph is rewritten to lead
+with the equal-lr comparison and to state that the best-of-each gap at S = 64 was a tuning
+artefact of one-seed lr selection (the S5 pick of 1e-3 for the ablation came from a single
+27.7 % run at S = 32). Table II gets same-lr H2 rows; Fig. 2 gets the ablation at 3e-4.
+The ablation at 3e-4 is now the best learned writer (65.8 / 96.0), 4 pp under the
+parameter-free reference at both budgets, so H1 fails for it too but narrowly at S = 128.
+Lesson recorded in Decisions: hyperparameter selection on one seed is not safe for a
+writer whose basin is stochastic; the N = 128 column keeps selected.yaml as pre-registered
+(changing it now would be post hoc), and the ablation-at-3e-4 runs are reported as the
+additional condition they are. Not changed: selected.yaml.
 
 ## 2026-10-26 S6 the sweep — runs/sweep/<writer>_S<S>_N<N>_s<seed>
 
