@@ -103,7 +103,10 @@ def figure(runs, out: Path, n: int = 64, h2=None):
     fig, axes = plt.subplots(1, 3, figsize=(11, 3.2), gridspec_kw={"width_ratios": [1.2, 1, 1.1]})
     slots = sorted({s for (w, s, nn) in runs if nn == n})
     ax = axes[0]
+    present = {w for (w, _, nn) in runs if nn == n}
     for w, (color, label) in SERIES.items():
+        if w not in present:
+            continue
         means, pts = [], []
         for s in slots:
             recs = runs.get((w, s, n), {})
@@ -118,7 +121,7 @@ def figure(runs, out: Path, n: int = 64, h2=None):
         ax.plot(slots, means, "--", color=SERIES["no_interference"][0], linewidth=1.6, label="Ablation at the controller's lr", zorder=3)
     ax.set_xscale("log", base=2); ax.set_xticks(slots); ax.set_xticklabels([str(s) for s in slots])
     ax.set_xlabel("slots S"); ax.set_ylabel("test recall (%)"); ax.set_ylim(-3, 103)
-    style(ax, f"(a) recall at the training length, N = {n} (dots: seeds)")
+    style(ax, f"(a) recall at training length, N = {n} (dots: seeds)")
     handles = ax.get_legend_handles_labels()
     ax = axes[1]
     s_mid = 64 if 64 in slots else slots[len(slots) // 2]
@@ -160,6 +163,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root")
     ap.add_argument("--fig", default=None)
+    ap.add_argument("--fig-n", type=int, default=64, help="load N shown in the figure")
     ap.add_argument("--tex", default=None)
     ap.add_argument("--h2", default=None, help="runs/sweep_h2: equal-learning-rate H2 check")
     a = ap.parse_args()
@@ -170,7 +174,7 @@ def main():
         Path(a.tex).write_text(rows + "\n")
     print(rows)
     if a.fig:
-        figure(runs, Path(a.fig), h2=h2)
+        figure(runs, Path(a.fig), n=a.fig_n, h2=h2 if a.fig_n == 64 else None)
 
 
 if __name__ == "__main__":

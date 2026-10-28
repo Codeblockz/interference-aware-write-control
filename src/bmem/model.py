@@ -47,7 +47,7 @@ class RecallModel(nn.Module):
         if cfg.writer == "pair_recency":
             assert cfg.pair_block > 0, "pair_recency needs ModelConfig.pair_block (= MQARConfig.context_tokens())"
             self.writer = PairRecencyWriter(cfg.pair_block)
-        if cfg.writer in ("controller", "no_interference"):
+        if cfg.writer in ("controller", "no_interference", "input_only"):
             self.writer = WRITERS[cfg.writer]()
             self.writer.slot_mlp[0] = nn.Linear(self.writer.n_feat, cfg.controller_hidden)
             self.writer.slot_mlp[2] = nn.Linear(cfg.controller_hidden, 1)

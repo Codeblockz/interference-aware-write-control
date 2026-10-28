@@ -1,0 +1,188 @@
+run: {"tag": "sweep S=32 N=128", "config_file": "experiments/configs/target_n128.yaml", "overrides": ["model.fast=true", "model.slots=32", "train.lr=0.001", "model.controller_hidden=32"], "git": {"commit": "527f7fb", "dirty": false}, "gpu": "NVIDIA GeForce RTX 5090", "started_at": "2026-10-28T06:15:21"}
+data: MQARConfig(vocab_size=8192, seq_len=1024, num_kv_pairs=128, num_updates=32, num_distractors=32, power_a=0.01, key_skew=0.0, min_delay=0, random_non_queries=True) train=100000 val=5000 test=10000
+model: ModelConfig(vocab_size=8192, d_model=256, n_layers=2, n_heads=4, slots=32, mem_dim=128, writer='no_interference', controller_hidden=32, assoc_shift=1, fast=True, write_bias_init=0.0, hard_gates=True, pair_block=384)
+params: {'total': 5994835, 'writer': 1603}
+state_bytes: {'backbone': 65536, 'memory': 33152, 'writer': 0, 'total': 98688}
+2026-10-28 06:15:41 fast path: compiled memory step + CUDA graph captured in 4 s
+2026-10-28 06:15:41 step     0 loss 9.0214 gnorm 0.09 lr 5.00e-06 s/step 0.007
+2026-10-28 06:15:55 step    50 loss 8.9384 gnorm 0.35 lr 2.55e-04 s/step 0.290
+2026-10-28 06:16:10 step   100 loss 8.3898 gnorm 0.25 lr 5.05e-04 s/step 0.291
+2026-10-28 06:16:24 step   150 loss 8.3466 gnorm 0.17 lr 7.55e-04 s/step 0.291
+2026-10-28 06:16:39 step   200 loss 8.3405 gnorm 0.12 lr 1.00e-03 s/step 0.291
+2026-10-28 06:16:54 step   250 loss 8.3344 gnorm 0.10 lr 1.00e-03 s/step 0.291
+2026-10-28 06:17:08 step   300 loss 8.3302 gnorm 0.09 lr 1.00e-03 s/step 0.291
+2026-10-28 06:17:23 step   350 loss 8.3271 gnorm 0.09 lr 9.99e-04 s/step 0.291
+2026-10-28 06:17:37 step   400 loss 8.3254 gnorm 0.07 lr 9.98e-04 s/step 0.291
+2026-10-28 06:17:52 step   450 loss 8.3238 gnorm 0.07 lr 9.97e-04 s/step 0.291
+2026-10-28 06:18:08   eval step 500: val recall 0.0003 ci [0.0002, 0.0003] write_frac 0.000 slot_entropy 5.00 filled 0.00 by_class q/d/u/o 0.00/0.00/0.00/0.00 elapsed 2.5 min
+2026-10-28 06:18:09 step   500 loss 8.3229 gnorm 0.08 lr 9.96e-04 s/step 0.337
+2026-10-28 06:18:23 step   550 loss 8.3224 gnorm 0.07 lr 9.95e-04 s/step 0.291
+2026-10-28 06:18:38 step   600 loss 8.3216 gnorm 0.06 lr 9.94e-04 s/step 0.291
+2026-10-28 06:18:52 step   650 loss 8.3207 gnorm 0.06 lr 9.92e-04 s/step 0.291
+2026-10-28 06:19:07 step   700 loss 8.3206 gnorm 0.06 lr 9.90e-04 s/step 0.291
+2026-10-28 06:19:21 step   750 loss 8.3201 gnorm 0.06 lr 9.88e-04 s/step 0.291
+2026-10-28 06:19:36 step   800 loss 8.3197 gnorm 0.06 lr 9.85e-04 s/step 0.291
+2026-10-28 06:19:50 step   850 loss 8.3193 gnorm 0.07 lr 9.83e-04 s/step 0.291
+2026-10-28 06:20:05 step   900 loss 8.3190 gnorm 0.06 lr 9.80e-04 s/step 0.291
+2026-10-28 06:20:19 step   950 loss 8.3185 gnorm 0.06 lr 9.77e-04 s/step 0.291
+2026-10-28 06:20:36   eval step 1000: val recall 0.0003 ci [0.0002, 0.0003] write_frac 0.000 slot_entropy 5.00 filled 0.00 by_class q/d/u/o 0.00/0.00/0.00/0.00 elapsed 4.9 min
+2026-10-28 06:20:36 step  1000 loss 8.3179 gnorm 0.06 lr 9.74e-04 s/step 0.329
+2026-10-28 06:20:50 step  1050 loss 8.3182 gnorm 0.06 lr 9.71e-04 s/step 0.291
+2026-10-28 06:21:05 step  1100 loss 8.3177 gnorm 0.07 lr 9.68e-04 s/step 0.291
+2026-10-28 06:21:20 step  1150 loss 8.3173 gnorm 0.10 lr 9.64e-04 s/step 0.291
+2026-10-28 06:21:34 step  1200 loss 8.3171 gnorm 0.06 lr 9.60e-04 s/step 0.291
+2026-10-28 06:21:49 step  1250 loss 8.3165 gnorm 0.06 lr 9.56e-04 s/step 0.291
+2026-10-28 06:22:03 step  1300 loss 8.3167 gnorm 0.06 lr 9.52e-04 s/step 0.291
+2026-10-28 06:22:18 step  1350 loss 8.3160 gnorm 0.06 lr 9.47e-04 s/step 0.292
+2026-10-28 06:22:32 step  1400 loss 8.3163 gnorm 0.06 lr 9.43e-04 s/step 0.291
+2026-10-28 06:22:47 step  1450 loss 8.3152 gnorm 0.05 lr 9.38e-04 s/step 0.291
+2026-10-28 06:23:03   eval step 1500: val recall 0.0002 ci [0.0002, 0.0003] write_frac 0.000 slot_entropy 4.96 filled 0.00 by_class q/d/u/o 0.00/0.00/0.00/0.00 elapsed 7.4 min
+2026-10-28 06:23:03 step  1500 loss 8.3154 gnorm 0.06 lr 9.33e-04 s/step 0.329
+2026-10-28 06:23:18 step  1550 loss 8.3150 gnorm 0.06 lr 9.28e-04 s/step 0.291
+2026-10-28 06:23:32 step  1600 loss 8.3138 gnorm 0.06 lr 9.23e-04 s/step 0.291
+2026-10-28 06:23:47 step  1650 loss 8.3138 gnorm 0.06 lr 9.17e-04 s/step 0.291
+2026-10-28 06:24:02 step  1700 loss 8.3138 gnorm 0.06 lr 9.11e-04 s/step 0.291
+2026-10-28 06:24:16 step  1750 loss 8.3129 gnorm 0.06 lr 9.06e-04 s/step 0.291
+2026-10-28 06:24:31 step  1800 loss 8.3126 gnorm 0.06 lr 9.00e-04 s/step 0.291
+2026-10-28 06:24:45 step  1850 loss 8.3130 gnorm 0.06 lr 8.94e-04 s/step 0.291
+2026-10-28 06:25:00 step  1900 loss 8.3124 gnorm 0.06 lr 8.87e-04 s/step 0.291
+2026-10-28 06:25:14 step  1950 loss 8.3118 gnorm 0.06 lr 8.81e-04 s/step 0.291
+2026-10-28 06:25:30   eval step 2000: val recall 0.0002 ci [0.0002, 0.0003] write_frac 0.001 slot_entropy 5.00 filled 0.03 by_class q/d/u/o 0.00/0.00/0.00/0.00 elapsed 9.8 min
+2026-10-28 06:25:31 step  2000 loss 8.3109 gnorm 0.06 lr 8.74e-04 s/step 0.329
+2026-10-28 06:25:45 step  2050 loss 8.3109 gnorm 0.06 lr 8.68e-04 s/step 0.291
+2026-10-28 06:26:00 step  2100 loss 8.3108 gnorm 0.06 lr 8.61e-04 s/step 0.291
+2026-10-28 06:26:14 step  2150 loss 8.3091 gnorm 0.07 lr 8.54e-04 s/step 0.291
+2026-10-28 06:26:29 step  2200 loss 8.3100 gnorm 0.07 lr 8.46e-04 s/step 0.291
+2026-10-28 06:26:43 step  2250 loss 8.3098 gnorm 0.07 lr 8.39e-04 s/step 0.291
+2026-10-28 06:26:58 step  2300 loss 8.3103 gnorm 0.07 lr 8.32e-04 s/step 0.291
+2026-10-28 06:27:13 step  2350 loss 8.3091 gnorm 0.07 lr 8.24e-04 s/step 0.291
+2026-10-28 06:27:27 step  2400 loss 8.3085 gnorm 0.07 lr 8.16e-04 s/step 0.291
+2026-10-28 06:27:42 step  2450 loss 8.3081 gnorm 0.07 lr 8.08e-04 s/step 0.291
+2026-10-28 06:27:58   eval step 2500: val recall 0.0004 ci [0.0003, 0.0005] write_frac 0.000 slot_entropy 4.95 filled 0.01 by_class q/d/u/o 0.00/0.00/0.00/0.00 elapsed 12.3 min
+2026-10-28 06:27:58 step  2500 loss 8.3085 gnorm 0.08 lr 8.00e-04 s/step 0.329
+2026-10-28 06:28:13 step  2550 loss 8.3076 gnorm 0.07 lr 7.92e-04 s/step 0.291
+2026-10-28 06:28:27 step  2600 loss 8.3069 gnorm 0.08 lr 7.84e-04 s/step 0.291
+2026-10-28 06:28:42 step  2650 loss 8.3062 gnorm 0.07 lr 7.76e-04 s/step 0.291
+2026-10-28 06:28:56 step  2700 loss 8.3055 gnorm 0.08 lr 7.67e-04 s/step 0.291
+2026-10-28 06:29:11 step  2750 loss 8.3057 gnorm 0.07 lr 7.59e-04 s/step 0.291
+2026-10-28 06:29:25 step  2800 loss 8.3042 gnorm 0.08 lr 7.50e-04 s/step 0.291
+2026-10-28 06:29:40 step  2850 loss 8.3041 gnorm 0.08 lr 7.41e-04 s/step 0.291
+2026-10-28 06:29:54 step  2900 loss 8.3034 gnorm 0.08 lr 7.32e-04 s/step 0.291
+2026-10-28 06:30:09 step  2950 loss 8.3039 gnorm 0.08 lr 7.23e-04 s/step 0.291
+2026-10-28 06:30:25   eval step 3000: val recall 0.0004 ci [0.0003, 0.0005] write_frac 0.000 slot_entropy 4.99 filled 0.01 by_class q/d/u/o 0.00/0.00/0.00/0.00 elapsed 14.7 min
+2026-10-28 06:30:25 step  3000 loss 8.3020 gnorm 0.09 lr 7.14e-04 s/step 0.329
+2026-10-28 06:30:40 step  3050 loss 8.3022 gnorm 0.08 lr 7.05e-04 s/step 0.291
+2026-10-28 06:30:55 step  3100 loss 8.3016 gnorm 0.09 lr 6.96e-04 s/step 0.291
+2026-10-28 06:31:09 step  3150 loss 8.3010 gnorm 0.09 lr 6.87e-04 s/step 0.291
+2026-10-28 06:31:24 step  3200 loss 8.3014 gnorm 0.09 lr 6.77e-04 s/step 0.291
+2026-10-28 06:31:38 step  3250 loss 8.3010 gnorm 0.11 lr 6.68e-04 s/step 0.291
+2026-10-28 06:31:53 step  3300 loss 8.3000 gnorm 0.09 lr 6.58e-04 s/step 0.291
+2026-10-28 06:32:07 step  3350 loss 8.2990 gnorm 0.09 lr 6.49e-04 s/step 0.291
+2026-10-28 06:32:22 step  3400 loss 8.2976 gnorm 0.10 lr 6.39e-04 s/step 0.291
+2026-10-28 06:32:36 step  3450 loss 8.2969 gnorm 0.10 lr 6.29e-04 s/step 0.291
+2026-10-28 06:32:53   eval step 3500: val recall 0.0004 ci [0.0003, 0.0005] write_frac 0.011 slot_entropy 5.00 filled 0.31 by_class q/d/u/o 0.01/0.01/0.01/0.01 elapsed 17.2 min
+2026-10-28 06:32:53 step  3500 loss 8.2967 gnorm 0.10 lr 6.20e-04 s/step 0.329
+2026-10-28 06:33:07 step  3550 loss 8.2962 gnorm 0.11 lr 6.10e-04 s/step 0.291
+2026-10-28 06:33:22 step  3600 loss 8.2966 gnorm 0.11 lr 6.00e-04 s/step 0.291
+2026-10-28 06:33:37 step  3650 loss 8.2963 gnorm 0.10 lr 5.90e-04 s/step 0.291
+2026-10-28 06:33:51 step  3700 loss 8.2946 gnorm 0.10 lr 5.80e-04 s/step 0.291
+2026-10-28 06:34:06 step  3750 loss 8.2956 gnorm 0.11 lr 5.70e-04 s/step 0.291
+2026-10-28 06:34:20 step  3800 loss 8.2927 gnorm 0.11 lr 5.60e-04 s/step 0.291
+2026-10-28 06:34:35 step  3850 loss 8.2910 gnorm 0.12 lr 5.50e-04 s/step 0.291
+2026-10-28 06:34:49 step  3900 loss 8.2887 gnorm 0.13 lr 5.40e-04 s/step 0.291
+2026-10-28 06:35:04 step  3950 loss 8.2842 gnorm 0.13 lr 5.30e-04 s/step 0.291
+2026-10-28 06:35:20   eval step 4000: val recall 0.0049 ci [0.0046, 0.0052] write_frac 0.040 slot_entropy 5.00 filled 0.88 by_class q/d/u/o 0.06/0.06/0.05/0.04 elapsed 19.7 min
+2026-10-28 06:35:20 step  4000 loss 8.2702 gnorm 0.17 lr 5.20e-04 s/step 0.329
+2026-10-28 06:35:35 step  4050 loss 8.2002 gnorm 0.27 lr 5.10e-04 s/step 0.291
+2026-10-28 06:35:49 step  4100 loss 8.0175 gnorm 0.35 lr 5.00e-04 s/step 0.291
+2026-10-28 06:36:04 step  4150 loss 7.8185 gnorm 0.59 lr 4.90e-04 s/step 0.291
+2026-10-28 06:36:19 step  4200 loss 7.6678 gnorm 0.83 lr 4.80e-04 s/step 0.291
+2026-10-28 06:36:33 step  4250 loss 7.4621 gnorm 6.12 lr 4.70e-04 s/step 0.291
+2026-10-28 06:36:48 step  4300 loss 7.3731 gnorm 1.24 lr 4.60e-04 s/step 0.291
+2026-10-28 06:37:02 step  4350 loss 7.3109 gnorm 2.89 lr 4.50e-04 s/step 0.291
+2026-10-28 06:37:17 step  4400 loss 7.2640 gnorm 1.65 lr 4.40e-04 s/step 0.291
+2026-10-28 06:37:31 step  4450 loss 7.2239 gnorm 1.14 lr 4.30e-04 s/step 0.291
+2026-10-28 06:37:47   eval step 4500: val recall 0.1357 ci [0.1344, 0.1371] write_frac 0.032 slot_entropy 5.00 filled 0.94 by_class q/d/u/o 0.16/0.15/0.14/0.00 elapsed 22.1 min
+2026-10-28 06:37:48 step  4500 loss 7.1918 gnorm 4.90 lr 4.20e-04 s/step 0.329
+2026-10-28 06:38:02 step  4550 loss 7.1961 gnorm 3.88 lr 4.10e-04 s/step 0.291
+2026-10-28 06:38:17 step  4600 loss 7.1796 gnorm 8.35 lr 4.00e-04 s/step 0.291
+2026-10-28 06:38:31 step  4650 loss 7.1543 gnorm 10.60 lr 3.90e-04 s/step 0.291
+2026-10-28 06:38:46 step  4700 loss 7.1337 gnorm 16.07 lr 3.80e-04 s/step 0.291
+2026-10-28 06:39:00 step  4750 loss 7.1350 gnorm 1.14 lr 3.71e-04 s/step 0.291
+2026-10-28 06:39:15 step  4800 loss 7.1203 gnorm 6.60 lr 3.61e-04 s/step 0.291
+2026-10-28 06:39:30 step  4850 loss 7.1155 gnorm 8.61 lr 3.51e-04 s/step 0.291
+2026-10-28 06:39:44 step  4900 loss 7.1044 gnorm 3.28 lr 3.42e-04 s/step 0.291
+2026-10-28 06:39:59 step  4950 loss 7.0876 gnorm 1.68 lr 3.32e-04 s/step 0.291
+2026-10-28 06:40:15   eval step 5000: val recall 0.1429 ci [0.1416, 0.1443] write_frac 0.032 slot_entropy 5.00 filled 0.94 by_class q/d/u/o 0.17/0.17/0.12/0.00 elapsed 24.6 min
+2026-10-28 06:40:15 step  5000 loss 7.0966 gnorm 16.73 lr 3.23e-04 s/step 0.329
+2026-10-28 06:40:30 step  5050 loss 7.1032 gnorm 9.04 lr 3.13e-04 s/step 0.291
+2026-10-28 06:40:44 step  5100 loss 7.0955 gnorm 3.12 lr 3.04e-04 s/step 0.291
+2026-10-28 06:40:59 step  5150 loss 7.0953 gnorm 2.29 lr 2.95e-04 s/step 0.291
+2026-10-28 06:41:13 step  5200 loss 7.0617 gnorm 0.76 lr 2.86e-04 s/step 0.291
+2026-10-28 06:41:28 step  5250 loss 7.0517 gnorm 9.74 lr 2.77e-04 s/step 0.291
+2026-10-28 06:41:42 step  5300 loss 7.0407 gnorm 8.65 lr 2.68e-04 s/step 0.291
+2026-10-28 06:41:57 step  5350 loss 7.0494 gnorm 6.93 lr 2.59e-04 s/step 0.291
+2026-10-28 06:42:12 step  5400 loss 7.0444 gnorm 16.30 lr 2.50e-04 s/step 0.291
+2026-10-28 06:42:26 step  5450 loss 7.0498 gnorm 11.28 lr 2.41e-04 s/step 0.291
+2026-10-28 06:42:42   eval step 5500: val recall 0.1527 ci [0.1515, 0.1540] write_frac 0.034 slot_entropy 5.00 filled 0.97 by_class q/d/u/o 0.18/0.18/0.15/0.00 elapsed 27.0 min
+2026-10-28 06:42:43 step  5500 loss 7.0505 gnorm 2.57 lr 2.33e-04 s/step 0.329
+2026-10-28 06:42:57 step  5550 loss 7.0337 gnorm 3.80 lr 2.24e-04 s/step 0.291
+2026-10-28 06:43:12 step  5600 loss 7.0420 gnorm 16.29 lr 2.16e-04 s/step 0.291
+2026-10-28 06:43:26 step  5650 loss 7.0359 gnorm 8.72 lr 2.08e-04 s/step 0.291
+2026-10-28 06:43:41 step  5700 loss 7.0590 gnorm 1.43 lr 2.00e-04 s/step 0.291
+2026-10-28 06:43:55 step  5750 loss 7.0392 gnorm 5.77 lr 1.92e-04 s/step 0.291
+2026-10-28 06:44:10 step  5800 loss 7.0176 gnorm 14.37 lr 1.84e-04 s/step 0.291
+2026-10-28 06:44:24 step  5850 loss 7.0085 gnorm 7.29 lr 1.76e-04 s/step 0.291
+2026-10-28 06:44:39 step  5900 loss 7.0137 gnorm 7.57 lr 1.68e-04 s/step 0.291
+2026-10-28 06:44:54 step  5950 loss 7.0113 gnorm 8.85 lr 1.61e-04 s/step 0.291
+2026-10-28 06:45:10   eval step 6000: val recall 0.1546 ci [0.1534, 0.1558] write_frac 0.036 slot_entropy 5.00 filled 0.98 by_class q/d/u/o 0.18/0.18/0.18/0.00 elapsed 29.5 min
+2026-10-28 06:45:10 step  6000 loss 7.0094 gnorm 4.08 lr 1.54e-04 s/step 0.329
+2026-10-28 06:45:25 step  6050 loss 7.0147 gnorm 2.24 lr 1.46e-04 s/step 0.291
+2026-10-28 06:45:39 step  6100 loss 7.0094 gnorm 1.87 lr 1.39e-04 s/step 0.291
+2026-10-28 06:45:54 step  6150 loss 7.0089 gnorm 1.01 lr 1.32e-04 s/step 0.291
+2026-10-28 06:46:08 step  6200 loss 6.9929 gnorm 4.16 lr 1.26e-04 s/step 0.291
+2026-10-28 06:46:23 step  6250 loss 6.9883 gnorm 1.85 lr 1.19e-04 s/step 0.291
+2026-10-28 06:46:37 step  6300 loss 6.9893 gnorm 8.41 lr 1.13e-04 s/step 0.291
+2026-10-28 06:46:52 step  6350 loss 6.9793 gnorm 1.24 lr 1.06e-04 s/step 0.291
+2026-10-28 06:47:06 step  6400 loss 7.0006 gnorm 7.58 lr 1.00e-04 s/step 0.291
+2026-10-28 06:47:21 step  6450 loss 6.9827 gnorm 2.55 lr 9.43e-05 s/step 0.291
+2026-10-28 06:47:37   eval step 6500: val recall 0.1573 ci [0.1560, 0.1585] write_frac 0.035 slot_entropy 5.00 filled 0.98 by_class q/d/u/o 0.18/0.18/0.17/0.00 elapsed 31.9 min
+2026-10-28 06:47:37 step  6500 loss 6.9760 gnorm 5.35 lr 8.85e-05 s/step 0.329
+2026-10-28 06:47:52 step  6550 loss 6.9703 gnorm 1.45 lr 8.29e-05 s/step 0.291
+2026-10-28 06:48:07 step  6600 loss 6.9704 gnorm 12.90 lr 7.74e-05 s/step 0.291
+2026-10-28 06:48:21 step  6650 loss 6.9668 gnorm 2.40 lr 7.21e-05 s/step 0.291
+2026-10-28 06:48:36 step  6700 loss 6.9652 gnorm 7.34 lr 6.70e-05 s/step 0.291
+2026-10-28 06:48:50 step  6750 loss 6.9782 gnorm 4.54 lr 6.20e-05 s/step 0.291
+2026-10-28 06:49:05 step  6800 loss 6.9664 gnorm 5.34 lr 5.73e-05 s/step 0.291
+2026-10-28 06:49:19 step  6850 loss 6.9606 gnorm 0.93 lr 5.27e-05 s/step 0.291
+2026-10-28 06:49:34 step  6900 loss 6.9562 gnorm 1.73 lr 4.83e-05 s/step 0.291
+2026-10-28 06:49:48 step  6950 loss 6.9670 gnorm 11.93 lr 4.41e-05 s/step 0.291
+2026-10-28 06:50:05   eval step 7000: val recall 0.1589 ci [0.1578, 0.1601] write_frac 0.035 slot_entropy 5.00 filled 0.98 by_class q/d/u/o 0.18/0.18/0.18/0.00 elapsed 34.4 min
+2026-10-28 06:50:05 step  7000 loss 6.9606 gnorm 5.32 lr 4.00e-05 s/step 0.329
+2026-10-28 06:50:19 step  7050 loss 6.9572 gnorm 3.00 lr 3.62e-05 s/step 0.291
+2026-10-28 06:50:34 step  7100 loss 6.9612 gnorm 1.14 lr 3.25e-05 s/step 0.291
+2026-10-28 06:50:48 step  7150 loss 6.9589 gnorm 8.11 lr 2.90e-05 s/step 0.291
+2026-10-28 06:51:03 step  7200 loss 6.9593 gnorm 8.04 lr 2.57e-05 s/step 0.291
+2026-10-28 06:51:18 step  7250 loss 6.9563 gnorm 3.86 lr 2.26e-05 s/step 0.291
+2026-10-28 06:51:32 step  7300 loss 6.9517 gnorm 4.22 lr 1.97e-05 s/step 0.291
+2026-10-28 06:51:47 step  7350 loss 6.9483 gnorm 1.65 lr 1.70e-05 s/step 0.291
+2026-10-28 06:52:01 step  7400 loss 6.9474 gnorm 0.91 lr 1.45e-05 s/step 0.291
+2026-10-28 06:52:16 step  7450 loss 6.9528 gnorm 9.16 lr 1.22e-05 s/step 0.291
+2026-10-28 06:52:32   eval step 7500: val recall 0.1593 ci [0.1581, 0.1605] write_frac 0.035 slot_entropy 5.00 filled 0.98 by_class q/d/u/o 0.18/0.18/0.18/0.00 elapsed 36.9 min
+2026-10-28 06:52:32 step  7500 loss 6.9488 gnorm 0.60 lr 1.01e-05 s/step 0.329
+2026-10-28 06:52:47 step  7550 loss 6.9497 gnorm 4.61 lr 8.19e-06 s/step 0.291
+2026-10-28 06:53:01 step  7600 loss 6.9503 gnorm 3.77 lr 6.47e-06 s/step 0.291
+2026-10-28 06:53:16 step  7650 loss 6.9494 gnorm 0.60 lr 4.96e-06 s/step 0.291
+2026-10-28 06:53:30 step  7700 loss 6.9495 gnorm 1.51 lr 3.65e-06 s/step 0.291
+2026-10-28 06:53:45 step  7750 loss 6.9472 gnorm 5.49 lr 2.53e-06 s/step 0.291
+2026-10-28 06:54:00 step  7800 loss 6.9443 gnorm 5.67 lr 1.62e-06 s/step 0.291
+2026-10-28 06:54:14 step  7850 loss 6.9505 gnorm 3.90 lr 9.12e-07 s/step 0.291
+2026-10-28 06:54:29 step  7900 loss 6.9493 gnorm 4.84 lr 4.06e-07 s/step 0.291
+2026-10-28 06:54:43 step  7950 loss 6.9537 gnorm 2.73 lr 1.01e-07 s/step 0.291
+2026-10-28 06:54:58 step  7999 loss 6.9459 gnorm 3.65 lr 4.06e-11 s/step 0.291
+2026-10-28 06:54:59   eval step 8000: val recall 0.1594 ci [0.1582, 0.1607] write_frac 0.035 slot_entropy 5.00 filled 0.98 by_class q/d/u/o 0.18/0.18/0.18/0.00 elapsed 39.3 min
+select=best: test evals use best.pt (step 8000, val recall 0.1594)
+test L=1024: recall 0.1607 ci95 [0.1603061705827713, 0.16117119789123535] (10000 ex)
+test L=2048: recall 0.1607 ci95 [0.16026484966278076, 0.1611257940530777] (10000 ex)
+test L=4096: recall 0.1607 ci95 [0.16029442846775055, 0.1611492782831192] (10000 ex)
+wrote runs/sweep/no_interference_S32_N128_s1/results.json

@@ -15,7 +15,7 @@ def _tiny(writer="controller"):
 
 
 @cuda
-@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "residual", "position"])
+@pytest.mark.parametrize("writer", ["controller", "no_interference", "input_only", "recency", "residual", "position"])
 def test_forward_backward_all_writers(writer):
     m = _tiny(writer).cuda()
     x = torch.randint(1, 512, (2, 32), device="cuda")
@@ -85,7 +85,7 @@ def test_controller_learns_small_task():
 
 
 @cuda
-@pytest.mark.parametrize("writer", ["controller", "no_interference", "recency", "pair_recency", "residual", "position"])
+@pytest.mark.parametrize("writer", ["controller", "no_interference", "input_only", "recency", "pair_recency", "residual", "position"])
 def test_fast_path_matches_eager(writer):
     """model.fast (compiled functional memory step) must give the same logits, gates and gradients."""
     torch.manual_seed(0)
@@ -156,3 +156,36 @@ def test_pair_recency_writes_only_at_pair_values():
     t = torch.arange(32, device="cuda")
     expect = ((t % 2 == 1) & (t < cfg.context_tokens())).float()
     assert torch.equal(mass[0], expect) and torch.equal(mass[2], expect)
+
+
+def test_input_only_sees_nothing_from_memory():
+    """The S8 ablation: with novelty=False the per-slot features are independent of the stored
+    keys and values; the default (novelty=True) keeps the existing controller / ablation
+    behaviour, so the sweep's writers are unchanged by the flag."""
+    import torch
+    from bmem.controller import InterferenceController, WRITERS
+    from bmem.memory import SlotMemory
+    torch.manual_seed(0)
+    B, S, d = 2, 4, 8
+    key, value = torch.randn(B, d), torch.randn(B, d)
+    def mem_with(seed):
+        torch.manual_seed(seed)
+        m = SlotMemory(B, S, d, "cpu")
+        m.keys, m.values, m.filled = torch.randn(B, S, d), torch.randn(B, S, d), torch.ones(B, S)
+        return m
+    w = WRITERS["input_only"]()
+    assert w.interference is False and w.novelty is False
+    phi1, pooled1 = w.features(mem_with(1), key, value, 16)
+    phi2, pooled2 = w.features(mem_with(2), key, value, 16)
+    assert torch.equal(phi1, phi2) and torch.equal(pooled1, pooled2)  # different stored content, same features
+    # default flag: the ablation still sees novelty, so its features DO depend on stored keys
+    a = WRITERS["no_interference"]()
+    assert a.novelty is True
+    phiA, _ = a.features(mem_with(1), key, value, 16)
+    phiB, _ = a.features(mem_with(2), key, value, 16)
+    assert not torch.equal(phiA, phiB)
+    # and the flag default leaves the controller's feature values untouched except column 2 when disabled
+    c = InterferenceController(novelty=False)
+    phiC, _ = c.features(mem_with(1), key, value, 16)
+    phiD, _ = InterferenceController().features(mem_with(1), key, value, 16)
+    assert torch.equal(phiC[..., [0, 1, 3, 4, 5]], phiD[..., [0, 1, 3, 4, 5]]) and torch.all(phiC[..., 2] == 0)

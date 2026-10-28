@@ -469,7 +469,47 @@ Decision: N = 128 column proceeds unchanged (one run at a time at batch 64, ~38 
 S6b). The paper's H1 paragraph: not supported, with the admission-rate mechanism; H2:
 supported at S = 64, undecided at S = 128 pending S6b, reversed inside the capacity-bound
 cell. Residual's lr transfer failure goes in the limitations with the one-seed selection.
-Result (N = 128 column): pending.
+Result, N = 128 column (54 runs, 2026-10-26 22:48 - 10-28 13:06, 0 failures, one run at a
+time at length 1024; `python experiments/analysis/sweep_table.py runs/sweep --n 128`):
+
+### N = 128: mean test recall (%) over seeds at each length [n seeds]; gates = write_frac / pairs written / filler written at the best checkpoint
+
+| writer | S=32 L1024 | S=32 L2048 | S=32 L4096 | S=64 L1024 | S=64 L2048 | S=64 L4096 | S=128 L1024 | S=128 L2048 | S=128 L4096 | S=32 gates | S=64 gates | S=128 gates |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| controller | 6.5 [3] | 5.1 [3] | 4.5 [3] | 23.7 [3] | 20.9 [3] | 19.5 [3] | 39.8 [3] | 32.5 [3] | 28.4 [3] | 0.37 / 0.42 / 0.36 | 0.12 / 0.34 / 0.08 | 0.19 / 0.54 / 0.11 |
+| no_interference | 10.8 [3] | 10.8 [3] | 10.8 [3] | 31.8 [3] | 31.8 [3] | 31.8 [3] | 61.7 [3] | 61.7 [3] | 61.7 [3] | 0.36 / 0.45 / 0.33 | 0.06 / 0.34 / 0.00 | 0.22 / 0.98 / 0.04 |
+| pair_recency | 25.1 [3] | 25.1 [3] | 25.1 [3] | 40.0 [3] | 40.0 [3] | 40.0 [3] | 70.0 [3] | 70.0 [3] | 70.0 [3] |  |  |  |
+| recency | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] |  |  |  |
+| residual | 5.3 [3] | 5.3 [3] | 5.3 [3] | 3.5 [3] | 2.7 [3] | 2.3 [3] | 0.1 [3] | 0.1 [3] | 0.1 [3] | 0.04 / 0.15 / 0.01 | 0.06 / 0.09 / 0.05 | 0.10 / 0.10 / 0.09 |
+| position | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] | 0.0 [3] |  |  |  |
+
+### N = 128: hypothesis tests at the training length (L1024); paired over test sequences, pooled across seeds, 95% bootstrap CI; per-seed differences in brackets
+
+- H1 S=32: controller - pair_recency = -18.6 pp, CI [-18.7, -18.6]  ['-25.0', '-15.7', '-15.1']  -> fails
+- H2 S=32: controller - no_interference = -4.3 pp, CI [-4.3, -4.3]  ['+0.0', '-6.7', '-6.2']  -> reversed
+- H1 S=64: controller - pair_recency = -16.3 pp, CI [-16.4, -16.3]  ['-7.6', '-20.9', '-20.5']  -> fails
+- H2 S=64: controller - no_interference = -8.1 pp, CI [-8.2, -8.0]  ['+0.9', '-13.5', '-11.7']  -> reversed
+- H1 S=128: controller - pair_recency = -30.2 pp, CI [-30.3, -30.0]  ['-15.4', '-38.8', '-36.3']  -> fails
+- H2 S=128: controller - no_interference = -21.8 pp, CI [-21.9, -21.7]  ['-8.4', '-27.1', '-29.9']  -> reversed
+
+Reading (three seeds per cell; ceilings 24 / 43 / 81 % at S = 32 / 64 / 128):
+- Same ordering as the N = 64 column in every cell: pair_recency, then the ablation, then
+  the controller, then residual, with naive recency and position at 0. pair_recency sits at
+  its ceiling at S = 32 (25.1 vs 24), 3 under at S = 64 (40.0 vs 43) and 11 under at S = 128
+  (70.0 vs 81), the same shortfalls as the matching pairs-per-slot cells at N = 64.
+- H1 fails in every cell (-16 to -30 pp vs pair_recency, every seed negative).
+- H2 at best-of-each rates is reversed in every cell (ablation ahead by 4 / 8 / 22 pp), with
+  the controller bimodal (one seed within 1 pp of the ablation at S = 32 and 64, the other
+  two 7-14 pp below; at S = 128 all three below). S6b's equal-lr finding (the ablation at
+  3e-4 ahead) makes the best-of-each reversal here the expected direction, not a surprise.
+- The controller is the only writer whose recall falls with evaluation length at every S
+  (-2 / -4 / -11 pp from 1024 to 4096); every fixed policy and the ablation are flat.
+- Residual is at chance in all three cells; its rate was selected at N = 64, S = 32.
+- Audit note (10-27) applies: the ablation here still sees key novelty; the true
+  input-only ablation (S8) and the controller re-selection (S9) run next, at N = 64.
+Decision: Table II is complete at the pre-registered protocol. The paper's H1 paragraph
+states the failure at both loads; the H2 paragraph is rewritten after S8. Step 6's sweep is
+done; the delay sweep remains.
 
 ## 2026-10-25 S5 hyperparameter selection at the target — runs/step3/s5_<writer>_lr<lr>_s0, s5_controller_h{32,128}_s0
 

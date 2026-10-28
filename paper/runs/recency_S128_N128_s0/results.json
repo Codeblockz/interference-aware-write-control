@@ -1,0 +1,443 @@
+{
+  "writer": "recency",
+  "seed": 0,
+  "tag": "sweep S=128 N=128",
+  "config": {
+    "n_train": 100000,
+    "n_val": 5000,
+    "n_test": 10000,
+    "data": {
+      "vocab_size": 8192,
+      "seq_len": 1024,
+      "num_kv_pairs": 128,
+      "num_updates": 32,
+      "num_distractors": 32,
+      "power_a": 0.01,
+      "min_delay": 0
+    },
+    "model": {
+      "d_model": 256,
+      "n_layers": 2,
+      "n_heads": 4,
+      "slots": 128,
+      "mem_dim": 128,
+      "writer": "recency",
+      "fast": true,
+      "pair_block": 384
+    },
+    "train": {
+      "steps": 8000,
+      "batch_size": 64,
+      "lr": 0.0003,
+      "warmup": 200,
+      "eval_every": 500,
+      "eval_batches": 10,
+      "seed": 0
+    },
+    "eval_lengths": [
+      2048,
+      4096
+    ]
+  },
+  "config_file": "experiments/configs/target_n128.yaml",
+  "overrides": [
+    "model.fast=true",
+    "model.slots=128",
+    "train.lr=0.0003"
+  ],
+  "git": {
+    "commit": "a6812f3",
+    "dirty": false
+  },
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "started_at": "2026-10-27T15:59:21",
+  "ended_at": "2026-10-27T16:33:15",
+  "status": "done",
+  "params": {
+    "total": 5989120,
+    "writer": 0
+  },
+  "state_bytes": {
+    "backbone": 65536,
+    "memory": 132608,
+    "writer": 0,
+    "total": 198144
+  },
+  "select": "best",
+  "selected_step": 2000,
+  "selected_val_recall": 0.0003234863397665322,
+  "history": [
+    {
+      "step": 500,
+      "loss": 8.323850803375244,
+      "gnorm": 0.10832696408033371,
+      "lr": 0.0002989136012894168,
+      "val_recall": 0.0002807617129292339,
+      "val_ci95": [
+        0.00020141601271461695,
+        0.0003601074276957661
+      ],
+      "elapsed_s": 113.80635368399089,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 1000,
+      "loss": 8.320074043273927,
+      "gnorm": 0.09082527458667755,
+      "lr": 0.0002922995863249258,
+      "val_recall": 0.0002807617129292339,
+      "val_ci95": [
+        0.00020141601271461695,
+        0.0003601074276957661
+      ],
+      "elapsed_s": 227.3727953499765,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 1500,
+      "loss": 8.31729700088501,
+      "gnorm": 0.07830113917589188,
+      "lr": 0.00027993400765187124,
+      "val_recall": 0.000244140625,
+      "val_ci95": [
+        0.00017089843458961695,
+        0.0003234863397665322
+      ],
+      "elapsed_s": 340.95067329498124,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 2000,
+      "loss": 8.314440765380859,
+      "gnorm": 0.07884334027767181,
+      "lr": 0.000262316665834458,
+      "val_recall": 0.0003234863397665322,
+      "val_ci95": [
+        0.0002380371151957661,
+        0.0004150390741415322
+      ],
+      "elapsed_s": 454.51350250598625,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 2500,
+      "loss": 8.311380805969238,
+      "gnorm": 0.08472805470228195,
+      "lr": 0.00024015963085444297,
+      "val_recall": 0.0002807617129292339,
+      "val_ci95": [
+        0.00020736694568768144,
+        0.0003662109375
+      ],
+      "elapsed_s": 568.086369867,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 3000,
+      "loss": 8.307752056121826,
+      "gnorm": 0.09556055814027786,
+      "lr": 0.00021435846117107165,
+      "val_recall": 0.0002502441348042339,
+      "val_ci95": [
+        0.0001770019589457661,
+        0.0003295898495707661
+      ],
+      "elapsed_s": 681.6617803339905,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 3500,
+      "loss": 8.305158348083497,
+      "gnorm": 0.10142742097377777,
+      "lr": 0.00018595600641603955,
+      "val_recall": 0.000244140625,
+      "val_ci95": [
+        0.00017089843458961695,
+        0.0003234863397665322
+      ],
+      "elapsed_s": 795.2274632240005,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 4000,
+      "loss": 8.302484893798828,
+      "gnorm": 0.10989652574062347,
+      "lr": 0.0001561002567713431,
+      "val_recall": 0.0003173828008584678,
+      "val_ci95": [
+        0.00023193359083961695,
+        0.0004028320254292339
+      ],
+      "elapsed_s": 908.8174976739974,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 4500,
+      "loss": 8.299638442993164,
+      "gnorm": 0.11826901137828827,
+      "lr": 0.00012599794270319947,
+      "val_recall": 0.0002990722714457661,
+      "val_ci95": [
+        0.0002197265566792339,
+        0.0003845214960165322
+      ],
+      "elapsed_s": 1022.3847228079976,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 5000,
+      "loss": 8.296177463531494,
+      "gnorm": 0.12734238803386688,
+      "lr": 9.686576049028076e-05,
+      "val_recall": 0.000213623046875,
+      "val_ci95": [
+        0.0001464843808207661,
+        0.00028091430431231856
+      ],
+      "elapsed_s": 1135.9648651379975,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 5500,
+      "loss": 8.293580532073975,
+      "gnorm": 0.13628019392490387,
+      "lr": 6.988119494680481e-05,
+      "val_recall": 0.000274658203125,
+      "val_ci95": [
+        0.00020141601271461695,
+        0.0003540039178915322
+      ],
+      "elapsed_s": 1249.5433283519815,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 6000,
+      "loss": 8.291464099884033,
+      "gnorm": 0.14266818761825562,
+      "lr": 4.6134927021884395e-05,
+      "val_recall": 0.000274658203125,
+      "val_ci95": [
+        0.00020141601271461695,
+        0.0003601074276957661
+      ],
+      "elapsed_s": 1363.130813073978,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 6500,
+      "loss": 8.290857734680175,
+      "gnorm": 0.14690473675727844,
+      "lr": 2.658674989790398e-05,
+      "val_recall": 0.0002807617129292339,
+      "val_ci95": [
+        0.00020141601271461695,
+        0.0003662109375
+      ],
+      "elapsed_s": 1476.7203122109931,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 7000,
+      "loss": 8.29092945098877,
+      "gnorm": 0.1506403088569641,
+      "lr": 1.2026775401739348e-05,
+      "val_recall": 0.0002624511835165322,
+      "val_ci95": [
+        0.0001892089785542339,
+        0.0003479003789834678
+      ],
+      "elapsed_s": 1590.302747845999,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 7500,
+      "loss": 8.29024606704712,
+      "gnorm": 0.14898036420345306,
+      "lr": 3.043498715087911e-06,
+      "val_recall": 0.0002990722714457661,
+      "val_ci95": [
+        0.0002197265566792339,
+        0.00038467408739961684
+      ],
+      "elapsed_s": 1703.8797903769882,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    },
+    {
+      "step": 8000,
+      "loss": 8.290273399353028,
+      "gnorm": 0.14957554638385773,
+      "lr": 1.2166671919944248e-11,
+      "val_recall": 0.0002929687616415322,
+      "val_ci95": [
+        0.000213623046875,
+        0.0003784179571084678
+      ],
+      "elapsed_s": 1817.454607571999,
+      "write_frac": 1.0,
+      "slot_entropy": 7.0,
+      "filled_frac": 1.0,
+      "write_by_class": {
+        "queried": 1.0,
+        "distractor": 1.0,
+        "update": 1.0,
+        "other": 1.0
+      }
+    }
+  ],
+  "train_seconds": 1817.4550815039838,
+  "train_tokens_per_s": 288473.7044318808,
+  "peak_mem_mb": 8336.64111328125,
+  "steps_done": 8000,
+  "eval": {
+    "L1024": {
+      "recall": 0.00022734375670552254,
+      "recall_ci95": [
+        0.00020312500419095159,
+        0.0002547070325817913
+      ],
+      "n_examples": 10000,
+      "eval_tokens_per_s": 1040951.6586517922,
+      "wall_s": 9.837526868999703
+    },
+    "L2048": {
+      "recall": 0.00023671875533182174,
+      "recall_ci95": [
+        0.00021093750547152013,
+        0.0002640624879859388
+      ],
+      "n_examples": 10000,
+      "eval_tokens_per_s": 546297.7224611168,
+      "wall_s": 37.49744081599056
+    },
+    "L4096": {
+      "recall": 0.00024218749604187906,
+      "recall_ci95": [
+        0.0002156249975087121,
+        0.00026953124324791133
+      ],
+      "n_examples": 10000,
+      "eval_tokens_per_s": 276363.5447278227,
+      "wall_s": 148.2109016700124
+    }
+  }
+}

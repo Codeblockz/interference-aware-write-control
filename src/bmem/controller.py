@@ -60,9 +60,11 @@ def _inv_len(seq_len) -> Tensor | float:
 class InterferenceController(Writer):
     ctx_dim = 16
 
-    def __init__(self, hidden: int = 64, interference: bool = True, hard: bool = True, prior: float = 5.0):
+    def __init__(self, hidden: int = 64, interference: bool = True, hard: bool = True, prior: float = 5.0,
+                 novelty: bool = True):
         super().__init__()
         self.interference = interference
+        self.novelty = novelty  # False: also zero the key-novelty feature (true input-only ablation, LOG "S8")
         self.hard = hard  # straight-through one-hot slot choice; soft gradient
         self.n_feat = 6
         self.slot_mlp = nn.Sequential(nn.Linear(self.n_feat, hidden), nn.GELU(), nn.Linear(hidden, 1))
@@ -79,6 +81,8 @@ class InterferenceController(Writer):
         if not self.interference:
             sim = torch.zeros_like(sim)
             dis = torch.zeros_like(dis)
+        if not self.novelty:
+            novelty = torch.zeros_like(novelty)
         inv_T = _inv_len(seq_len)
         phi = torch.stack(
             [sim, dis, novelty.expand_as(sim), mem.age * inv_T, mem.usage * inv_T, mem.filled], dim=-1
@@ -185,6 +189,7 @@ class PositionWriter(Writer):
 WRITERS = {
     "controller": lambda: InterferenceController(interference=True),
     "no_interference": lambda: InterferenceController(interference=False),
+    "input_only": lambda: InterferenceController(interference=False, novelty=False),  # sees nothing from stored keys/values
     "recency": RecencyWriter,
     "pair_recency": PairRecencyWriter,  # needs ModelConfig.pair_block; RecallModel sets it
     "residual": ResidualCacheWriter,
