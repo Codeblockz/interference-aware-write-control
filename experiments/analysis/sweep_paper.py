@@ -25,9 +25,9 @@ from plot import SERIES, TEXT, MUTED, GRID, style  # noqa: E402
 from sweep_table import load, paired, NONLEARNED, mean_recall  # noqa: E402
 from bmem.metrics import bootstrap_ci  # noqa: E402
 
-ROWS = [("controller", "Interference controller"), ("no_interference", "No-interference ablation"),
+ROWS = [("controller", "Controller"), ("no_interference", "Novelty ablation"),
         ("pair_recency", "Pair-only recency"), ("recency", "Recency"),
-        ("residual", "Residual cache (HOLA-style)"), ("position", "Position activation (Proteus-style)")]
+        ("residual", "Residual cache"), ("position", "Position activation")]
 CELLS = [(64, 32), (64, 64), (64, 128), (128, 32), (128, 64), (128, 128)]
 
 
@@ -74,7 +74,7 @@ def tex_rows(runs, h2=None) -> str:
             cells.append(f"{np.mean(vals):.1f} {{\\scriptsize$\\pm${np.std(vals):.1f}}}" if len(vals) > 1 else f"{vals[0]:.1f}")
         out.append(f"{label} & " + " & ".join(cells) + r" \\")
     out.append(r"\midrule")
-    for name, comp in (("H1: controller $-$ best non-learned", None), ("H2: controller $-$ ablation", "no_interference")):
+    for name, comp in (("H1: ctrl $-$ best non-learned", None), ("H2: ctrl $-$ novelty ablation", "no_interference")):
         cells = []
         for n, s in CELLS:
             b = comp or max((x for x in NONLEARNED if (x, s, n) in runs), key=lambda x: mean_recall(runs[(x, s, n)], L0(n)), default=None)
@@ -89,8 +89,8 @@ def tex_rows(runs, h2=None) -> str:
         out.append(r"\midrule")
         out.append(r"No-interference ablation at $3\times10^{-4}$ & " + " & ".join(
             (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f}}}" if recs else "--")(h2.get(("no_interference", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
-        for lr, cget, aget, label in (("3e-4", lambda s, n: runs.get(("controller", s, n), {}), lambda s, n: h2.get(("no_interference", "3e-4", s, n), {}), "H2 at equal lr $3\\times10^{-4}$"),
-                                      ("1e-3", lambda s, n: h2.get(("controller", "1e-3", s, n), {}), lambda s, n: runs.get(("no_interference", s, n), {}), "H2 at equal lr $10^{-3}$")):
+        for lr, cget, aget, label in (("3e-4", lambda s, n: runs.get(("controller", s, n), {}), lambda s, n: h2.get(("no_interference", "3e-4", s, n), {}), "H2, both at $3\\times10^{-4}$"),
+                                      ("1e-3", lambda s, n: h2.get(("controller", "1e-3", s, n), {}), lambda s, n: runs.get(("no_interference", s, n), {}), "H2, both at $10^{-3}$")):
             cells = []
             for n, s in CELLS:
                 r = paired_recs(cget(s, n), aget(s, n), L0(n)) if cget(s, n) and aget(s, n) else None
