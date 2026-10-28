@@ -135,8 +135,43 @@ content signal (novelty) matters; H2 as proposed is supported in its weak form (
 content information helps) while the per-slot detail still adds nothing (S6b). (c) in
 between -> reported as undecided with the per-seed differences. The paper's H2 paragraph
 and the baselines table are rewritten to name both comparisons either way.
-Result:
-Decision:
+Result (12 runs, 2026-10-28 13:14-17:05, 0 failures; test recall at 512, best-val checkpoint;
+paired against the existing runs at the same rate and cell):
+
+```
+S=64 lr 3e-4: input_only [66.0, 66.1, 65.8] mean 66.0
+   input_only - no_interference: +0.2 pp [+0.1,+0.2] seeds ['-0.3', '+0.8', '+0.1']
+   input_only - controller: +2.5 pp [+2.4,+2.5] seeds ['+2.5', '+1.8', '+3.1']
+S=64 lr 1e-3: input_only [39.6, 39.5, 39.9] mean 39.7
+   input_only - no_interference: -6.0 pp [-6.1,-5.9] seeds ['-17.4', '-0.1', '-0.3']
+   input_only - controller: -1.9 pp [-2.0,-1.8] seeds ['-10.0', '+5.2', '-1.0']
+S=128 lr 3e-4: input_only [93.3, 95.6, 93.0] mean 94.0
+   input_only - no_interference: -2.0 pp [-2.0,-1.9] seeds ['-2.9', '-0.2', '-2.8']
+   input_only - controller: +27.2 pp [+27.0,+27.4] seeds ['+45.7', '+20.5', '+15.4']
+S=128 lr 1e-3: input_only [70.3, 79.1, 85.4] mean 78.2
+   input_only - no_interference: +0.9 pp [+0.7,+1.1] seeds ['-22.6', '+9.9', '+15.5']
+   input_only - controller: +7.1 pp [+7.0,+7.2] seeds ['-0.5', '+13.0', '+8.8']
+```
+
+Admission at the best checkpoint (pairs / filler): 3e-4 S = 64: 0.91 / 0.04, 0.71 / 0.00,
+0.89 / 0.03; 3e-4 S = 128: 0.97-0.98 / 0.09-0.10; 1e-3 S = 64: 1.00 / 0.23 (all seeds, the
+same write-everything policy as the novelty ablation at 1e-3); 1e-3 S = 128: not inspected.
+The prediction (20-50 at S = 64, 50-85 at S = 128, wider seed spread) was wrong in the
+informative direction: a writer that sees nothing derived from the stored keys or values
+matches the novelty-aware ablation within 3 pp at every rate and budget (66.0 vs 65.8;
+94.0 vs 96.0; 39.7 vs 45.6 at 1e-3 / S = 64 is the one exception, -6 pp, both in the
+write-everything basin; 78.3 vs 77.3) and has the tightest seed spread of any learned writer
+at 3e-4 (65.8-66.1; 93.0-95.6). It beats the controller at 3e-4 by 2.5 pp at S = 64 and 27
+pp at S = 128, every seed positive. Its gate learns "this is a pair's value position" from
+the backbone's content projection and slot age alone.
+Decision: rule (a). On this task the stored-content signals (key novelty, per-slot key
+similarity, value disagreement) carry nothing a learned admission gate can use; adding
+them makes the gate admit fewer pairs and vary more across seeds. H2 as proposed is refuted
+outright, at equal learning rate, on three seeds, at both decisive budgets. The paper's
+baselines table gets an "input-only" row (this writer; the former "input-only routing"
+row is relabelled "novelty routing"), Table II gets an input-only block next to the
+equal-lr H2 block, and the H2 paragraph leads with this comparison. The remaining H1-vs-
+oracle gap for the best learned writer is 4 pp at both budgets (66.0 / 94.0 vs 70.1 / 100).
 
 ## 2026-10-27 S9 controller re-selection at the decisive cell (pre-registered; runs after S8) — runs/step4/s9_controller_lr<lr>_h<hidden>_S64_N64_s{0,1,2}
 

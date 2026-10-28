@@ -126,7 +126,8 @@ reported for completeness.)
 
 \textbf{H2.} Removing the interference features while holding the controller's
 size fixed reduces that gain, showing that the interference signal carries
-information the input alone does not.
+information the input alone does not. (Tested against an ablation whose gate
+sees nothing derived from the stored memory; Section~\ref{sec:controller}.)
 
 \subsection{Approach and contents of this draft}
 
@@ -368,11 +369,18 @@ decision depends only on the current association and the memory, so it adds no
 per-sequence state beyond the memory's own age, usage, and occupancy scalars,
 which are counted in the budget.
 
-\textbf{H2 ablation.} Setting \texttt{interference=False} zeroes the two
-interference features and leaves everything else identical, including parameter
-count. This is also the input-only routing baseline: a learned router that sees
-novelty and slot age but not conflict, which is the simplified form of Raven's
-routing signal.
+\textbf{H2 ablations.} Setting \texttt{interference=False} zeroes the two
+per-slot interference features and leaves everything else identical, including
+parameter count. It keeps the novelty feature, which is itself derived from the
+stored keys (one minus the maximum key similarity), so this \emph{novelty
+ablation} is a router that sees whether the incoming key is already in memory
+but not where or with what value; it is the simplified form of Raven's routing
+signal. A second ablation, \texttt{novelty=False} as well, is the
+\emph{input-only ablation}: its gate sees only the content projection of the
+current token and the slots' age, usage and occupancy, nothing derived from
+stored keys or values. H2 as stated is the comparison against the input-only
+ablation; the novelty ablation separates the per-slot detail from the global
+signal.
 
 \subsection{Baselines}
 \label{sec:baselines}
@@ -395,7 +403,8 @@ Writer & Gate rule & Models \\
 Interference controller & Eq.~\eqref{eq:gate} on the six features of Eq.~\eqref{eq:features} & proposed \\
 Recency & $g_{t,j} = 1$ for the oldest (or first empty) slot, else 0, at every position & trivial control \\
 Pair-only recency & recency gate applied only at the value position of a pair (uses the task layout) & non-learned reference \\
-Input-only routing & controller with interference features zeroed & Raven~\cite{afzal2026raven} \\
+Novelty ablation & controller with the two per-slot interference features zeroed (keeps key novelty) & Raven~\cite{afzal2026raven} \\
+Input-only ablation & controller with all stored-content features zeroed (content projection, age, usage, occupancy only) & H2 as stated \\
 Residual cache & write to the oldest slot with gate $\sigma(\beta(\lVert r_t(k_t) - v_t\rVert/\sqrt{d} - \tau))$, learned $\tau, \beta$ & HOLA~\cite{cui2026hola} \\
 Position activation & slot $j$ unlocked at position $\lceil jT/S \rceil$; recency among unlocked slots & Proteus~\cite{bayat2026proteus} \\
 \bottomrule
@@ -519,6 +528,8 @@ H2: controller $-$ ablation (pp) & -4.8 {\scriptsize(-7, -6, -2)} & +17.9 {\scri
 No-interference ablation at $3\times10^{-4}$ & -- & 65.8 {\scriptsize$\pm$0.4} & 96.0 {\scriptsize$\pm$0.2} & -- & -- & -- \\
 H2 at equal lr $3\times10^{-4}$ (pp) & -- & -2.3 {\scriptsize(-3, -1, -3)} & -29.2 {\scriptsize(-49, -21, -18)} & -- & -- & -- \\
 H2 at equal lr $10^{-3}$ (pp) & -- & -4.1 {\scriptsize(-7, -5, +1)} & -6.2 {\scriptsize(-22, -3, +7)} & -- & -- & -- \\
+Input-only ablation at $3\times10^{-4}$ & -- & 66.0 {\scriptsize$\pm$0.1} & 94.0 {\scriptsize$\pm$1.2} & -- & -- & -- \\
+Input-only $-$ controller at $3\times10^{-4}$ (pp) & -- & +2.5 {\scriptsize(+2, +2, +3)} & +27.2 {\scriptsize(+46, +21, +15)} & -- & -- & -- \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -529,8 +540,9 @@ H2 at equal lr $10^{-3}$ (pp) & -- & -4.1 {\scriptsize(-7, -5, +1)} & -6.2 {\scr
 \caption{The $N = 64$ column of the sweep. (a) Test recall at the training
 length against slot budget, mean over three seeds (lines) and each seed
 (dots). Pair-only recency, which has no parameters in the writer, is above the
-controller at every budget; the dashed line is the ablation retrained at the
-controller's learning rate (the equal-rate H2 check). (b) Recall against evaluation length at $S = 64$:
+controller at every budget; the dashed line is the novelty ablation retrained at the
+controller's learning rate (the equal-rate H2 check) and the dotted line the
+input-only ablation at that rate. (b) Recall against evaluation length at $S = 64$:
 flat for every writer except the controller, which loses 2.4~pp from 512 to
 2048. (c) Admission at the best checkpoint: fraction of key-value pairs
 written (solid) and of filler tokens written (hatched). The controller admits
@@ -571,25 +583,27 @@ the controller wins by 20 to 60~pp; the failure is against the oracle-structure
 reference added in Section~\ref{sec:protocol}, which no writer without the
 generator's layout could implement.
 
-\textit{H2 test.} H2 is not supported. At each writer's own
-validation-selected learning rate the controller beats the no-interference
-ablation by 17.9~pp at $S = 64$ on every seed, but that comparison mixes the
-feature effect with a learning-rate effect: the ablation's selected rate,
-$10^{-3}$, came from a single seed at $S = 32$, and at that rate it writes
-every pair plus 18\% of filler and is unstable across seeds (39.7 to 57.0).
-Retrained at the controller's rate, $3 \times 10^{-4}$, the ablation learns
-the same admission policy as the controller (70\% of pairs, 0.2\% filler) with
-a tighter seed spread (65.3 to 66.4 against 62.5 to 64.3) and beats it by
-2.3~pp on every seed; at $S = 128$ it reaches 96\% on all three seeds, 4~pp
-under pair-only recency and 29~pp above the controller. The controller
-trained at $10^{-3}$ is worse than at its own rate at both budgets (41.5 and
-71.2), so no rate makes the interference features pay. Inside the
-capacity-bound $S = 32$ cell the ablation is ahead by 4.8~pp on every seed.
-The honest statement is that the two interference features carry no
-information the input-only gate does not already use on this task, and that
-the input-only ablation trained at $3 \times 10^{-4}$ is the best learned
-writer in the study, 4~pp under the parameter-free reference at both
-budgets.
+\textit{H2 test.} H2 is refuted. The decisive comparison is the input-only
+ablation, whose gate sees nothing derived from the stored keys or values,
+trained at the controller's learning rate: it scores 66.0\% at $S = 64$ (seeds
+65.8 to 66.1) and 94.0\% at $S = 128$ (93.0 to 95.6), beating the controller by
+2.5 and 27~pp with every seed positive, and matching the novelty ablation
+within 0.2 and 2.0~pp. It has the tightest seed spread of any learned writer.
+Its admission statistics show what it learned: 71 to 91\% of pairs and under
+4\% of filler at $S = 64$, i.e.\ ``this token is a pair's value position'',
+read off the backbone's content projection. Every stored-content feature added
+on top of that, key novelty, per-slot key similarity, value disagreement, makes
+the gate admit fewer pairs and vary more across seeds. The best-of-each
+comparison in the upper rows of Table~\ref{tab:final}, which had the controller
+17.9~pp ahead of the novelty ablation at $S = 64$, is a learning-rate artefact:
+the ablation's selected rate, $10^{-3}$, came from a single seed at $S = 32$,
+and at that rate every learned writer writes every pair plus 18 to 23\% of
+filler. At equal rates the ordering is input-only $\geq$ novelty ablation $>$
+controller at both budgets, and inside the capacity-bound $S = 32$ cell the
+novelty ablation is ahead of the controller by 4.8~pp on every seed. The
+interference signal carries no information a learned admission gate can use on
+this task; the best learned writer is the one that ignores memory entirely,
+and it is 4~pp under the parameter-free reference at both budgets.
 
 \textit{Length generalization.} Fig.~\ref{fig:sweep}(b). (Test sets at
 $2\times$ and $4\times$ the training length share keys, values and query
@@ -828,7 +842,9 @@ sweep seeds at the same setting, and the residual cache's learning rate,
 chosen at $S = 32$ where it then learned on all three seeds, leaves it at
 chance at 64 and 128 slots. The sweep's best-of-each H2 comparison would have
 supported H2 at $S = 64$; only the equal-learning-rate check showed the gap
-was the ablation's one-seed rate selection. The selection recipe, not the
+was the ablation's one-seed rate selection, and only a code audit showed that
+the pre-registered ablation still saw key novelty, which is why the input-only
+ablation was added after the sweep. The selection recipe, not the
 sweep, is what one seed per grid point weakens. The learned writers
 are bimodal across seeds (one of three controller seeds at $S = 128$ reached
 48\% against 75 and 78), so the three-seed means carry a spread the pooled

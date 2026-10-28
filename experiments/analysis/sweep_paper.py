@@ -35,13 +35,13 @@ def L0(n):
     return f"L{512 if n == 64 else 1024}"
 
 
-H2NAME = re.compile(r"^(?P<w>[a-z_]+)_lr(?P<lr>[0-9e.-]+)_S(?P<s>\d+)_N(?P<n>\d+)_s(?P<seed>\d+)$")
+H2NAME = re.compile(r"^(?:s8_)?(?P<w>[a-z_]+)_lr(?P<lr>[0-9e.-]+)_S(?P<s>\d+)_N(?P<n>\d+)_s(?P<seed>\d+)$")
 
 
-def load_h2(root: Path) -> dict:
-    """runs/sweep_h2: (w, lr, s, n) -> seed -> record (the equal-learning-rate H2 check)."""
+def load_h2(roots) -> dict:
+    """runs/sweep_h2 and runs/step4: (w, lr, s, n) -> seed -> record (equal-lr H2 check, S8 input-only)."""
     runs = defaultdict(dict)
-    for f in sorted(root.glob("*/results.json")):
+    for f in sorted(f for root in roots for f in Path(root).glob("*/results.json")):
         m = H2NAME.match(f.parent.name)
         r = json.loads(f.read_text())
         if not m or r.get("status") != "done":
@@ -96,6 +96,15 @@ def tex_rows(runs, h2=None) -> str:
                 r = paired_recs(cget(s, n), aget(s, n), L0(n)) if cget(s, n) and aget(s, n) else None
                 cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize({', '.join(f'{d:+.0f}' for d in r[3])})}}")
             out.append(f"{label} (pp) & " + " & ".join(cells) + r" \\")
+        if any(k[0] == "input_only" for k in h2):
+            out.append(r"Input-only ablation at $3\times10^{-4}$ & " + " & ".join(
+                (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f}}}" if recs else "--")(h2.get(("input_only", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
+            cells = []
+            for n, s in CELLS:
+                a, b = h2.get(("input_only", "3e-4", s, n), {}), runs.get(("controller", s, n), {})
+                r = paired_recs(a, b, L0(n)) if a and b else None
+                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize({', '.join(f'{d:+.0f}' for d in r[3])})}}")
+            out.append(r"Input-only $-$ controller at $3\times10^{-4}$ (pp) & " + " & ".join(cells) + r" \\")
     return "\n".join(out)
 
 
@@ -118,7 +127,10 @@ def figure(runs, out: Path, n: int = 64, h2=None):
             ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=12, color=color, alpha=0.6, zorder=4)
     if h2:
         means = [np.mean([100 * r["eval"][L0(n)]["recall"] for r in h2.get(("no_interference", "3e-4", s, n), {}).values()] or [np.nan]) for s in slots]
-        ax.plot(slots, means, "--", color=SERIES["no_interference"][0], linewidth=1.6, label="Ablation at the controller's lr", zorder=3)
+        ax.plot(slots, means, "--", color=SERIES["no_interference"][0], linewidth=1.6, label="Novelty ablation at the controller's lr", zorder=3)
+        if any(k[0] == "input_only" for k in h2):
+            means = [np.mean([100 * r["eval"][L0(n)]["recall"] for r in h2.get(("input_only", "3e-4", s, n), {}).values()] or [np.nan]) for s in slots]
+            ax.plot(slots, means, ":", color=SERIES["input_only"][0], linewidth=1.8, label="Input-only ablation (3e-4)", zorder=3)
     ax.set_xscale("log", base=2); ax.set_xticks(slots); ax.set_xticklabels([str(s) for s in slots])
     ax.set_xlabel("slots S"); ax.set_ylabel("test recall (%)"); ax.set_ylim(-3, 103)
     style(ax, f"(a) recall at training length, N = {n} (dots: seeds)")
@@ -154,8 +166,8 @@ def figure(runs, out: Path, n: int = 64, h2=None):
     style(ax, "(c) admission at the best checkpoint")
     ax.legend(fontsize=6, frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.0))
     ax.set_ylim(0, 125); ax.set_yticks([0, 25, 50, 75, 100])
-    fig.legend(*handles, fontsize=7.5, frameon=False, loc="lower center", ncol=7)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    fig.legend(*handles, fontsize=7, frameon=False, loc="lower center", ncol=4)
+    fig.tight_layout(rect=(0, 0.11, 1, 1))
     fig.savefig(out, dpi=200)
 
 
@@ -165,10 +177,10 @@ def main():
     ap.add_argument("--fig", default=None)
     ap.add_argument("--fig-n", type=int, default=64, help="load N shown in the figure")
     ap.add_argument("--tex", default=None)
-    ap.add_argument("--h2", default=None, help="runs/sweep_h2: equal-learning-rate H2 check")
+    ap.add_argument("--h2", nargs="*", default=None, help="roots with <writer>_lr<lr>_S<S>_N<N>_s<seed> runs (runs/sweep_h2, runs/step4)")
     a = ap.parse_args()
     runs = load(Path(a.root))
-    h2 = load_h2(Path(a.h2)) if a.h2 else None
+    h2 = load_h2(a.h2) if a.h2 else None
     rows = tex_rows(runs, h2)
     if a.tex:
         Path(a.tex).write_text(rows + "\n")
