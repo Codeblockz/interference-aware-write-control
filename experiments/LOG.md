@@ -72,6 +72,94 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## Audit 2026-10-27 (Ryan: "is there any other oversight that could mess up the entire experiment?")
+
+Read end to end: data.py, memory.py, controller.py, model.forward, train.evaluate, run.py.
+Found, in order of consequence:
+1. **The no-interference ablation is not input-only.** `InterferenceController.features`
+   computes novelty = 1 - max_j sim(k_t, k_j) from the stored keys *before* the
+   `interference=False` branch zeroes sim and dis, and keeps it both per slot and in the
+   pooled write input (controller.py:76-86). The ablation can therefore see whether the
+   incoming key is already in memory. H2 as proposed ("the interference signal carries
+   information the input alone does not") was not tested; what S6/S6b tested is whether
+   per-slot similarity and value disagreement add anything beyond global key novelty
+   (they do not). The paper's "input-only routing" label is wrong as written. -> S8 below.
+2. **Hyperparameters were selected in the capacity-bound cell** (N = 64, S = 32, ceiling
+   43 %), where policies are compressed and seeds disagree, while the hypotheses are decided
+   at S = 64 / 128. Likely cause of residual's non-transfer and of the controller's
+   "under our tuning" caveat. -> S9 below.
+3. **Two asymmetries of the oracle reference, quantified.** pair_recency never writes
+   outside the context block, so it never spends a slot on a spurious pair and is immune to
+   a queried key reappearing as random filler before its query; measured on 2000 generated
+   sequences: 0.95 % of queries at N = 64 / L = 512, 1.85 % at N = 128 / L = 1024 (bound on
+   that effect for learned writers). In the other direction, pair_recency writes updates
+   into a new slot rather than in place, so it sits below the ceiling script's in-place
+   policy (40.1 vs 43.4 at S = 32; hand count 40.0).
+4. **Verified clean:** the answer token never appears in the input (labels_t[t] is the value
+   predicted at the query-key position; the next input token is random filler); the
+   train-length train/val/test splits are generated before model construction, so they are
+   identical across writers for a seed; splits use distinct seeds and are deduplicated;
+   distractor keys are disjoint from queried keys; labels are the latest value; read precedes
+   write at every position; validation for checkpoint selection is a fixed 640-sequence
+   prefix (CI about +/- 1.5 pp, same for every writer); fast path tested equal to eager.
+5. **Mid-column merge verified harmless.** d8c3e5a (key_skew) changed only src/bmem/data.py;
+   the pre-merge and post-merge generators produce bit-identical train/val/test tensors for
+   seeds 0-2 at both (L = 512, N = 64) and (L = 1024, N = 128). The N = 128 column's runs
+   record four commits (052d491, 016b02b, 87093da: LOG/paper only; a6812f3: post-merge).
+6. Already known, unchanged: one-seed selection; fixed 8000-step schedule; filler differs
+   across writers at the 2x/4x test lengths; seed bimodality; no early stop for dead runs
+   (~9 GPU-h per column, no effect on numbers).
+None of these changes a measurement; 1 and 2 change what the paper may claim.
+
+## 2026-10-27 S8 true input-only ablation (pre-registered; runs after the N = 128 column) — runs/step4/s8_input_only_lr<lr>_S{64,128}_N64_s{0,1,2}
+
+Why: audit item 1. H2 as proposed needs an ablation that sees nothing derived from the
+stored keys or values. Code change (not yet made, after the column drains): a `novelty`
+flag on `InterferenceController` (default True, so `controller` and `no_interference` are
+unchanged; a test asserts their gates are identical with the default) and a `WRITERS`
+entry `input_only` = interference False, novelty False. What `input_only` then sees per slot:
+age, usage, filled; pooled: filled.mean and the content projection ctx. Twelve runs:
+target.yaml, hidden 32, S = 64 and 128, N = 64, lr 3e-4 (the controller's rate) and 1e-3
+(the ablation's rate), seeds 0-2, best-validation checkpoint, `jobq.py --max 2 --free-gb 17`.
+Compared against the existing controller (3e-4: 63.5 / 66.8; 1e-3: 41.5 / 71.2) and
+no_interference (3e-4: 65.8 / 96.0; 1e-3: 45.6 / 77.3) runs at the same rates and cells,
+paired over the same test sequences per seed.
+Prediction: key novelty is the signal that lets a gate recognise a repeated key, so without
+it the gate has only content and age. At 3e-4: S = 64 between naive recency (0) and the
+current ablation (65.8), point prediction 20-50; S = 128 between 29 and 96, point
+prediction 50-85. Seed spread larger than the current ablation's.
+Decision rule: (a) input_only within 3 pp of no_interference at the same rate on the
+three-seed mean at both S -> stored-content signals carry nothing usable; H2 as proposed
+refuted outright. (b) input_only >= 10 pp below no_interference at either S -> the stored-
+content signal (novelty) matters; H2 as proposed is supported in its weak form (stored-
+content information helps) while the per-slot detail still adds nothing (S6b). (c) in
+between -> reported as undecided with the per-seed differences. The paper's H2 paragraph
+and the baselines table are rewritten to name both comparisons either way.
+Result:
+Decision:
+
+## 2026-10-27 S9 controller re-selection at the decisive cell (pre-registered; runs after S8) — runs/step4/s9_controller_lr<lr>_h<hidden>_S64_N64_s{0,1,2}
+
+Why: audit item 2 and the S6b lesson. The controller's sweep settings (lr 3e-4, hidden 32)
+were chosen on one seed in the capacity-bound S = 32 cell. Re-select at N = 64, S = 64 on
+three seeds: lr {3e-4, 6e-4, 1e-3} x hidden {32, 64}, 18 runs (the 3e-4 / h32 and 1e-3 / h32
+points exist: sweep and S6b, reused, so 12 new runs), target.yaml otherwise, best-validation
+checkpoint, `jobq.py --max 2 --free-gb 17` (~6 h). Selection by the mean validation recall
+of the best checkpoint over the three seeds; the selected config's *test* recall is then
+reported next to the sweep's number for this cell only (selection at other cells would be
+a new sweep and is out of scope). The ablation's points at h32 (3e-4: 65.8, 1e-3: 45.6)
+stand; no ablation re-selection.
+Prediction: the best configuration's three-seed mean validation recall is within 5 pp of
+63.5 and its test recall stays under pair_recency's 70.1; the 6e-4 and 1e-3 rows are less
+stable across seeds than 3e-4 (as in S5 and S6b); hidden 64 is within 3 pp of hidden 32.
+Decision rule: if any configuration's three-seed mean test recall exceeds 70.1 with the
+paired difference positive on every seed, H1 against the oracle reference flips at S = 64
+and the paper's H1 paragraph changes; otherwise the caveat "under our tuning" becomes
+"under three-seed selection at the decisive cell" and H1-vs-oracle stands as not supported.
+Residual is not re-selected: its failure above S = 32 is reported as an under-tuned baseline.
+Result:
+Decision:
+
 ## 2026-10-27 S7p key-skew pilot (worktree key-skew-test) — runs/skew/<writer>_k<skew>_s0
 
 Why (Ryan, 23:30: "can we test that theory, with a small test"): the caching argument says a
