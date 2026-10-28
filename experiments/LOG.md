@@ -41,6 +41,14 @@ min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-2
 
 ## Status
 
+- 2026-10-28 19:30: **Sweep complete (108 runs, 0 failures), S8 and S9 done (24 runs).**
+  H1 fails against the oracle pair-only reference in all 6 cells (and holds against the
+  proposal's own baselines by 20-60 pp above S = 32). H2 refuted as stated: the input-only
+  ablation (sees nothing from memory) matches the novelty ablation within 2 pp and beats the
+  controller at both budgets, three seeds. Re-selection at S = 64 on three seeds returns the
+  sweep's own setting. Paper: Tables I-III, Figs. 2-3, H1/H2/length/admission/limitations
+  text done; abstract, intro, discussion, conclusion still to be rewritten. Open: delay
+  sweep (PLAN 6), filler-RNG fix (deferred so all paired runs share test sequences).
 - 2026-10-26 23:00: **Sweep N = 64 column done (54 runs) and the S6b equal-lr check (12
   runs).** H1 fails at every S (pair-only recency 70 / 100 vs controller 63.5 / 66.8 at
   S = 64 / 128). H2 not supported: at equal lr the ablation beats the controller at both S
@@ -192,8 +200,29 @@ paired difference positive on every seed, H1 against the oracle reference flips 
 and the paper's H1 paragraph changes; otherwise the caveat "under our tuning" becomes
 "under three-seed selection at the decisive cell" and H1-vs-oracle stands as not supported.
 Residual is not re-selected: its failure above S = 32 is reported as an under-tuned baseline.
-Result:
-Decision:
+Result (12 new runs, 2026-10-28 17:05-19:28, 0 failures; val / test at 512 per seed, best
+checkpoint; paired test vs pair_recency over the same sequences):
+
+| lr | hidden | val per seed | mean val | mean test | vs pair_recency (per seed) |
+|---|---|---|---|---|---|
+| 3e-4 | 32 (sweep) | 63.6, 64.3, 62.5 | **63.5** | 63.5 | -6.6 (-6.5, -5.8, -7.4) |
+| 3e-4 | 64 | 32.9, 64.3, 29.7 | 42.3 | 42.3 | -27.7 (-37.3, -5.6, -40.3) |
+| 6e-4 | 32 | 48.8, 39.3, 43.1 | 43.8 | 43.7 | -26.4 |
+| 6e-4 | 64 | 34.9, 60.7, 25.9 | 40.5 | 40.6 | -29.5 |
+| 1e-3 | 32 (S6b) | 49.8, 34.3, 40.8 | 41.6 | 41.6 | -28.5 |
+| 1e-3 | 64 | 31.7, 32.8, 66.7 | 43.7 | 43.6 | -26.4 |
+
+Selected by three-seed mean validation: lr 3e-4, hidden 32, the sweep's setting. Every other
+configuration averages 40-44 with one good seed (60-67) and two in the 26-35 basin; 3e-4 /
+h32 is the only one where all three seeds land in the good basin. Prediction held (best
+within 5 pp of 63.5: it is 63.5; under 70.1; higher rates and hidden 64 less stable), with
+one miss: hidden 64 is 21 pp below hidden 32 on the mean, not within 3 pp, because of the
+basin, not the capacity.
+Decision: H1 against the oracle reference stands as not supported at S = 64 under
+three-seed selection at the decisive cell (-6.6 pp, every seed negative). The sweep's
+controller setting was the right one, so the N = 128 column and the other cells need no
+re-run. The paper's caveat changes from "under our tuning" to "under three-seed selection
+at the decisive cell". Steps S8 and S9 close the audit's two open items.
 
 ## 2026-10-27 S7p key-skew pilot (worktree key-skew-test) — runs/skew/<writer>_k<skew>_s0
 

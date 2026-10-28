@@ -87,7 +87,7 @@ def tex_rows(runs, h2=None) -> str:
         out.append(f"{name} (pp) & " + " & ".join(cells) + r" \\")
     if h2:
         out.append(r"\midrule")
-        out.append(r"No-interference ablation at $3\times10^{-4}$ & " + " & ".join(
+        out.append(r"Novelty ablation at $3\times10^{-4}$ & " + " & ".join(
             (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f}}}" if recs else "--")(h2.get(("no_interference", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
         for lr, cget, aget, label in (("3e-4", lambda s, n: runs.get(("controller", s, n), {}), lambda s, n: h2.get(("no_interference", "3e-4", s, n), {}), "H2, both at $3\\times10^{-4}$"),
                                       ("1e-3", lambda s, n: h2.get(("controller", "1e-3", s, n), {}), lambda s, n: runs.get(("no_interference", s, n), {}), "H2, both at $10^{-3}$")):

@@ -525,7 +525,7 @@ Position activation & 0.0 {\scriptsize$\pm$0.0} & 0.0 {\scriptsize$\pm$0.0} & 0.
 H1: ctrl $-$ best non-learned (pp) & -17.2 {\scriptsize(-21, -21, -9)} & -6.6 {\scriptsize(-6, -6, -7)} & -33.2 {\scriptsize(-52, -25, -22)} & -18.6 {\scriptsize(-25, -16, -15)} & -16.3 {\scriptsize(-8, -21, -20)} & -30.2 {\scriptsize(-15, -39, -36)} \\
 H2: ctrl $-$ novelty ablation (pp) & -4.8 {\scriptsize(-7, -6, -2)} & +17.9 {\scriptsize(+7, +25, +23)} & -10.5 {\scriptsize(-45, +6, +8)} & -4.3 {\scriptsize(+0, -7, -6)} & -8.1 {\scriptsize(+1, -14, -12)} & -21.8 {\scriptsize(-8, -27, -30)} \\
 \midrule
-No-interference ablation at $3\times10^{-4}$ & -- & 65.8 {\scriptsize$\pm$0.4} & 96.0 {\scriptsize$\pm$0.2} & -- & -- & -- \\
+Novelty ablation at $3\times10^{-4}$ & -- & 65.8 {\scriptsize$\pm$0.4} & 96.0 {\scriptsize$\pm$0.2} & -- & -- & -- \\
 H2, both at $3\times10^{-4}$ (pp) & -- & -2.3 {\scriptsize(-3, -1, -3)} & -29.2 {\scriptsize(-49, -21, -18)} & -- & -- & -- \\
 H2, both at $10^{-3}$ (pp) & -- & -4.1 {\scriptsize(-7, -5, +1)} & -6.2 {\scriptsize(-22, -3, +7)} & -- & -- & -- \\
 Input-only ablation at $3\times10^{-4}$ & -- & 66.0 {\scriptsize$\pm$0.1} & 94.0 {\scriptsize$\pm$1.2} & -- & -- & -- \\
@@ -647,7 +647,12 @@ density). Each cell is one seed, and the write policy a run settles into is
 stochastic (the "Capacity ceiling" paragraph of Section~\ref{sec:protocol}), so neighbouring cells can differ by
 more than the seed spread; the sweep's three seeds are the confirmation. The
 hidden-size-32 controller is also the only controller run whose validation
-recall rises monotonically to the end of the schedule.
+recall rises monotonically to the end of the schedule. A post-sweep
+re-selection of the controller at $N = 64$, $S = 64$ on three seeds (learning
+rate $\{3, 6, 10\} \times 10^{-4}$, hidden size $\{32, 64\}$) confirms the
+choice: $3 \times 10^{-4}$ with hidden size 32 averages 63.5\% validation
+recall with all three seeds within 2~pp, and every other setting averages 40
+to 44\% with two of three seeds in a poor basin.
 
 \begin{table}[t]
 \caption{Hyperparameter selection: validation recall (\%) of the best
@@ -848,7 +853,11 @@ ablation was added after the sweep. The selection recipe, not the
 sweep, is what one seed per grid point weakens. The learned writers
 are bimodal across seeds (one of three controller seeds at $S = 128$ reached
 48\% against 75 and 78), so the three-seed means carry a spread the pooled
-bootstrap interval does not show. The 8000-step schedule, fixed before the
+bootstrap interval does not show. Re-selecting the controller's learning rate and hidden
+size at $N = 64$, $S = 64$ on three seeds (six settings, 18 runs) returns the
+sweep's own setting as the best by 20~pp, so the H1 result at the decisive
+cell holds under three-seed selection there, not only under the original
+one-seed choice. The 8000-step schedule, fixed before the
 sweep, may under-train the learned writers: several controller runs at
 $S = 64$ and $S = 128$ were still rising at the last evaluation, and a pilot
 on a skewed key distribution (Section~\ref{sec:discussion}) found that the
