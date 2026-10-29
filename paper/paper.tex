@@ -939,7 +939,7 @@ residual cache & 0.1 & \textbf{37.2} & 0.2 \\
 pair-only recency & \textbf{40.1} & 40.1 & 40.0 \\
 position activation & \textbf{0.0} & 0.0 & 0.0 \\
 \midrule
-slot-MLP width (rate $3\times10^{-4}$) & 32 & 64 & 128 \\
+slot-MLP width & 32 & 64 & 128 \\
  & \textbf{32.5} & 19.0 & 24.6 \\
 \bottomrule
 \end{tabular}
@@ -1122,7 +1122,7 @@ remainder. The 4{,}000-step rows are seed 0 only.}
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{@{}llccp{0.27\columnwidth}@{}}
+\begin{tabular}{@{}llccp{0.21\columnwidth}@{}}
 \toprule
 writer & steps & skew 0 & skew 2 & admission at skew 2 \\
 \midrule
@@ -1130,9 +1130,9 @@ pair-only recency & 4k & 72.4 & 72.7 & 1.00 / 1.00 \\
 controller & 4k & 51.6 & 63.7 & 0.69 / 0.65 \\
 novelty ablation & 4k & 52.2 & 63.7 & -- \\
 \midrule
-pair-only recency & 12k & 76.4 (76.3/76.3/76.7) & 79.6 (79.3/80.2/79.3) & 1.00 / 1.00 \\
-controller & 12k & 68.8 (69.7/69.6/67.1) & 73.2 (78.5/78.5/62.5) & 0.91/0.50, 0.90/0.24, 0.95/0.95 \\
-novelty ablation & 12k & -- & 69.5 (67.1/74.6/66.7) & 0.81/0.80, 0.91/0.53, 0.64/0.69 \\
+pair-only recency & 12k & 76.4 {\tiny(76.3/76.3/76.7)} & 79.6 {\tiny(79.3/80.2/79.3)} & 1.00 / 1.00 \\
+controller & 12k & 68.8 {\tiny(69.7/69.6/67.1)} & 73.2 {\tiny(78.5/78.5/62.5)} & 0.91/0.50, 0.90/0.24, 0.95/0.95 \\
+novelty ablation & 12k & -- & 69.5 {\tiny(67.1/74.6/66.7)} & 0.81/0.80, 0.91/0.53, 0.64/0.69 \\
 \bottomrule
 \end{tabular}
 \end{table}
