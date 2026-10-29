@@ -168,7 +168,7 @@ target cell could not separate the hypotheses, and it is cheap enough to run
 before any sweep.
 \item \textbf{The pair-only rule as the reference.} Admit-every-pair-and-nothing-else is a reference every cited allocation
 mechanism can be compared against: it
-has no parameters, is 3 to 11~pp under the online ceiling only because it does
+has no parameters, is 3 to 11~pp under the online ceiling, in part because it does
 not overwrite updates in place, and here beats everything learned.
 \item \textbf{A protocol lesson.} Hyperparameters selected on one seed, in a
 capacity-bound cell, produced a false positive for H2 that only an
@@ -441,7 +441,7 @@ Writer & Gate rule & Models \\
 \midrule
 Interference controller & Eq.~\eqref{eq:gate} on the six features of Eq.~\eqref{eq:features} & proposed \\
 Recency & $g_{t,j} = 1$ for the oldest (or first empty) slot, else 0, at every position & trivial control \\
-Pair-only recency & recency gate applied only at the value position of a pair (uses the task layout) & non-learned reference \\
+Pair-only recency & recency gate applied only at the value position of a pair (uses the task layout) & rule-based reference \\
 Novelty ablation & controller with the two per-slot interference features zeroed (keeps key novelty) & Raven~\cite{afzal2026raven} \\
 Input-only ablation & controller with all stored-content features zeroed (content projection, age, usage, occupancy only) & H2 as stated \\
 Residual cache & write to the oldest slot with gate $\sigma(\beta(\lVert r_t(k_t) - v_t\rVert/\sqrt{d} - \tau))$, learned $\tau, \beta$ & HOLA~\cite{cui2026hola} \\
@@ -604,7 +604,7 @@ length.}
 \end{figure*}
 
 \textit{H1 test.} H1 is not supported at any budget at $N = 64$. The
-strongest non-learned writer in every cell is pair-only recency, and it beats
+strongest rule-based writer in every cell is pair-only recency, and it beats
 the controller by 6.6~pp at $S = 64$ (per-seed $-5.8$ to $-7.4$), by 17~pp in
 the capacity-bound $S = 32$ cell, and by 33~pp at $S = 128$, where it is
 perfect and the controller averages 67\% with one seed at 48\%. The
@@ -621,7 +621,7 @@ position activation), which are at or near chance in every cell above $S = 32$
 except naive recency at 64 associations and 128 slots (29\%),
 the controller wins by 20 to 63~pp over the best of them; the failure is against the oracle-structure
 reference added in Section~\ref{sec:protocol}, which no writer without the
-generator's layout could implement.
+generator's layout could implement exactly.
 
 \textit{H2 test.} H2 is refuted. The decisive comparison is the input-only
 ablation, whose gate sees nothing derived from the stored keys or values,
@@ -673,15 +673,17 @@ bits of its maximum for every learned writer at every budget, so no writer
 collapses onto a subset of slots; the differences are in \emph{what} is
 admitted, not \emph{where}.
 
-\textit{Cost.} Every writer has 5.99M parameters (the controller's gate adds
-1{,}603; the residual cache's threshold 2) and 129~KB of state per sequence at
-$S = 64$ (64~KB backbone, 65~KB memory). On the compiled fast path at length
-512 a run takes 15 minutes for the rule-based writers and 29 for the learned
-ones (300k against 150k tokens per second), two sharing an RTX 5090 at 12~GB
-each; at length 1024, 42 to 61 minutes, one at a time at 18 to 30~GB. Test
-evaluation on 10{,}000 sequences takes 4 to 9~s at the training length and up
-to 7.7 minutes at 4096. The 108 sweep runs took about 60 GPU-hours; the 60
-follow-up runs about 15.
+\textit{Cost.} Every writer has 5.99M parameters; the learned writers add
+5{,}715 to the rule-based ones (1{,}603 in the gate networks and 4{,}112 in the
+content projection), the residual cache 2. State per sequence at $S = 64$ is
+129~KB (64~KB backbone, 65~KB memory). On the compiled fast path at length 512
+a run takes 13 to 19 minutes for the rule-based writers (230k to 330k tokens
+per second) and 23 to 29 for the learned ones (150k to 190k), two sharing an
+RTX 5090 at 12 to 16~GB each; at length 1024, 27 to 62 minutes, one at a time
+at 18 to 30~GB. Test evaluation on 10{,}000 sequences takes 3 to 10~s at
+length 512, 10 to 31~s at 1024, and up to 7.7 minutes at 4096. Training plus
+test time sums to 56 GPU-hours for the 108 sweep runs, 15 for the 36 follow-up
+runs at the target, and 7 for the 24 skew-pilot runs.
 
 \textit{Hyperparameter selection.} Table~\ref{tab:hparams} gives the
 validation recall of the best checkpoint at $N = 64$, $S = 32$, seed 0, for
@@ -849,7 +851,8 @@ the only margin allocation could win there, is narrower than the controller's
 seed range in that cell (19 to 31\%). The proposal named this cell as the target. The ceiling was computed after
 the first three-seed results there and moved the decisive cells to 64 and 128
 slots; computed before the first target runs it would have saved a day of
-probes whose 18 to 32\% results were read at the time as training failures.
+probes into the post-peak drift of those runs, which the ceiling showed to be
+a move into a worse write policy rather than a training failure.
 
 \textit{A parameter-free rule beats every learned writer.} Pair-only recency
 has no parameters in the writer and uses one fact about the task, which
@@ -865,8 +868,8 @@ input-only ablation at 66.0\% at 64 slots; the novelty ablation at 96.0\% at
 128). Against the proposal's own baselines the picture reverses: the
 residual cache and position activation are at or near chance above 32 slots,
 naive recency reaches 29\% only at 128 slots, and the controller beats the
-best of the three by 20 to 63~pp in every such cell. H1 therefore holds against the baselines the proposal named
-and fails against the reference the proposal lacked.
+best of the three by 20 to 63~pp in every such cell. The controller therefore clears H1's 5-pp bar against the baselines the
+proposal named and fails it against the reference the proposal lacked.
 
 \textit{The interference signal carries nothing usable.} The decisive
 comparison is the input-only ablation, whose gate sees the content projection
@@ -959,7 +962,7 @@ learned rejection buys nothing: FIFO loses about 2.4 of 16 slots to
 distractors, and the controller gives up 10\% of pairs to reject half of them.
 Two further points carry back to the sweep. The controller gained 18~pp from
 4{,}000 to 12{,}000 steps at the pilot scale, so the 8{,}000-step schedule of
-Table~\ref{tab:final} likely under-trains the learned writers, and the
+Table~\ref{tab:final} may under-train the learned writers, and the
 basin-dependence seen there recurs here (one seed in three). A writer that
 could turn the reuse signal into a recall gain would need to reject
 distractors without under-admitting pairs, and the budget where that trade
@@ -1074,8 +1077,8 @@ and 3.4 times faster; without it the sweep would not have fit the schedule.
 
 This work asked whether a bounded memory beside a recurrent state should
 decide what to store by looking at what is already stored. Under a protocol
-fixed before the sweep, with 108 sweep runs and 60 follow-up runs on three
-seeds per cell, the answer on multi-query associative recall is no. A learned
+fixed before the sweep, with 108 sweep runs on three seeds per cell and 60
+follow-up runs, the answer on multi-query associative recall is no. A learned
 controller with per-slot interference features loses to a parameter-free rule
 that admits every key-value pair and nothing else, in every cell, by 6.6
 points at the decisive budget and by more as load grows (H1 not supported
