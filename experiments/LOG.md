@@ -41,6 +41,14 @@ min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-2
 
 ## Status
 
+- 2026-10-29 12:00: **Final paper complete; all planned runs done (108 sweep + 105 follow-up,
+  0 failures, 97 GPU-h).** S10 delay sweep: pair-only rule flat at 70.1 at every delay,
+  input-only 66.0 -> 50.2, controller 63.5 -> 24.5 (every seed) at delay 192: learned gates
+  are delay-sensitive, the rule is not. S11 attention reference: 100 % on three seeds at 24k
+  steps / lr 1e-3 after failing at the sweep's schedule at three rates. S12 input-only at
+  N = 128: +8.8 / +25.8 pp over the controller. Two reviewer passes applied (43 + 25 items).
+  Paper 15 pages, no placeholders, clean build; repo public; Ellis-RP3.ipynb executed clean;
+  Ellis-RP3-code.zip built. Remaining: Ryan's own read and the Canvas upload (due 2026-12-13).
 - 2026-10-28 23:30: **Final-paper pass in progress (plan approved 10-28 evening).** Two audits
   (method-vs-code, rubric) found: the pre-registered ablation saw key novelty (fixed by S8),
   "ceiling" claims overstated (replaced by closed forms for three policies, Table II),
