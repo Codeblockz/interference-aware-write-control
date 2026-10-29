@@ -80,6 +80,23 @@ features, gates, or the task. Per-run GPU time: `python experiments/analysis/cos
 
 ---
 
+## 2026-10-28 S12 input-only ablation at N = 128 (pre-registered; launched 2026-10-28 evening) — runs/step4/s8_input_only_lr3e-4_S{64,128}_N128_s{0,1,2}
+
+Why (rubric audit A10): H2 as stated rests on the two N = 64 cells of S8; at N = 128 the paper
+has only the best-of-each comparison it calls an artefact. Six runs put an equal-rate
+input-only comparison in the N = 128 cells. Config: target_n128.yaml, writer input_only,
+model.fast=true, slots 64 and 128, lr 3e-4, controller_hidden 32, seeds 0-2, best-validation
+checkpoint, one at a time (`jobq.py --max 1 --free-gb 20`), paired against
+runs/sweep/controller_S{64,128}_N128_s* (same seed, same data block). No code change.
+Prediction: input-only beats the controller (23.7 / 39.8 test at 1024) on the three-seed mean
+by 5-15 pp at S = 64 and 10-30 pp at S = 128; sits 5-15 pp under pair-only recency
+(40.0 / 70.0); smaller seed spread than the controller's (19.1-32.4; 31.2-54.7).
+Decision rule (the paper's new rule, D1): seed-level 95 % t-interval of controller minus
+input-only entirely below 0 -> reversed; all seeds negative but interval includes 0 -> not
+supported; otherwise undecided. Either way the H2 verdict is stated per cell.
+Result:
+Decision:
+
 ## Audit 2026-10-27 (Ryan: "is there any other oversight that could mess up the entire experiment?")
 
 Read end to end: data.py, memory.py, controller.py, model.forward, train.evaluate, run.py.
