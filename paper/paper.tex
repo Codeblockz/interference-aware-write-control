@@ -911,7 +911,39 @@ The controller loses 2.4~pp at $S = 64$ and 9~pp at $S = 128$, and naive
 recency loses 8~pp at $S = 128$; both are writers whose gate statistics drift
 with position.
 
-\textit{Delay sweep.} DELAY-RESULT
+\textit{Delay sweep.} Fig.~\ref{fig:delay}. Minimum query delay is the only
+length-like factor that moves recall, and it moves only the learned writers.
+Trained and tested at $N = 64$, $S = 64$ with $\delta \in \{0, 64, 128,
+192\}$ (27 new runs, three seeds each; $\delta = 192$ puts every query in the
+last 128 tokens), pair-only recency is 70.1\% at every delay on every seed,
+the closed form of Table~\ref{tab:ceiling} exactly. The input-only ablation
+falls from 66.0 to 64.2, 55.6 and 50.2\% (seeds at $\delta = 192$: 24.8,
+60.5, 65.2), and the controller from 63.5 to 46.7, 37.5 and 24.5\% (24.2 to
+24.8 on every seed at $\delta = 192$); at four times the training length the
+controller at $\delta = 192$ is at 15\%. The admission statistics track it:
+with delay the controller's pair admission falls from 69 to 33\% and its
+filler admission rises from 0.6 to 13\%; the input-only ablation's from 84 to
+62\% and 2.5 to 6.8\%. By the pre-registered rule (a three-seed mean shift of
+more than 2~pp with every seed in the same direction between $\delta = 0$ and
+$\delta = 192$) both learned writers are delay-sensitive and the rule is not.
+The pre-registered prediction had the controller losing 1 to 5~pp and the
+input-only ablation under 2; both were wrong by an order of magnitude. The
+reading is a training effect, not a capacity one: the gate is trained only
+through the recall loss at the queries, so a longer filler gap between the
+pairs and the queries is a longer credit-assignment path through the
+recurrence, and the policy the gate reaches degrades with it, while a rule
+that never looks at the loss is unaffected.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/delay.png}
+\caption{Delay sweep at $N = 64$, $S = 64$: test recall against the minimum
+query delay, mean over three seeds (lines) and seeds (dots), at (a) the
+training length and (b) four times it. The pair-only rule is flat at its
+closed-form value; both learned writers fall, the controller to 24.5\% at a
+delay of 192 tokens on every seed.}
+\label{fig:delay}
+\end{figure}
 
 \textit{How each writer spends its budget.} Fig.~\ref{fig:sweep}(c), at the
 best checkpoint, mean over seeds. The controller's write fraction rises with
@@ -1094,7 +1126,12 @@ memory-load account of Lee et al.~\cite{lee2026howlinear} seen from the
 memory side: adding tokens that are not associations adds no load, and recall
 does not move. The flat curves also mean this protocol is a weak test of
 extrapolation; the delay sweep of Section~\ref{sec:final-results} is the test
-that is not flat by construction. DELAY-DISCUSSION
+that is not flat by construction, and it separates the writers the length
+test could not: with the queries pushed 192 tokens past the pairs the rule
+does not move, the input-only ablation loses 16~pp on the mean and the
+controller 39~pp on every seed. Delay is not a load, and the rule confirms
+it; what it lengthens is the path from the recall loss back to the write
+decision, and the learned gates degrade along that path.
 
 \subsection{The writer as an online cache}
 
@@ -1333,10 +1370,11 @@ information a learned gate used (H2 not supported in all four cells tested at
 equal learning rate, reversed at 64 associations and 64 slots). The
 mechanism is measured, not inferred: the controller admits 69 to 82\% of pairs
 where the rule admits all; the per-slot interference features lower admission
-and widen the seed spread; key novelty moves recall by at most 2~pp; and no
+and widen the seed spread; key novelty moves recall by at most 2~pp; no
 learned writer overwrote updated keys in place above the chance rate of the
 rule itself, the one behaviour the interference features were built to
-enable.
+enable; and a longer gap between the pairs and the queries, which leaves the
+rule exactly where it was, degrades every learned gate, the controller most.
 
 Three things the study establishes beyond the hypotheses. The proposal's
 target cell is capacity-bound: the pair-only rule answers 40\% there by a

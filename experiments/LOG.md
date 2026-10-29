@@ -113,8 +113,40 @@ than 2 pp with all three seeds in the same direction (between-condition comparis
 sequences differ across δ, so this is not paired; within-δ writer comparisons are paired).
 A result that changes the paper: pair_recency falling with δ (then the read, not the write,
 is delay-sensitive and the "load, not length" paragraph is wrong).
-Result:
-Decision:
+Result (27 runs, 2026-10-29 03:50-10:00, 0 failures; `python experiments/analysis/delay_paper.py runs/delay`):
+
+| writer | delay | test@512 mean (seeds) | test@2048 | pairs / filler written |
+|---|---|---|---|---|
+| pair_recency | 0 | 70.1 (70.0, 70.1, 70.1) | 70.1 | 1.00 / 0.000 |
+| pair_recency | 64 | 70.1 (70.1, 70.1, 70.1) | 70.1 | 1.00 / 0.000 |
+| pair_recency | 128 | 70.1 (70.0, 70.1, 70.1) | 70.1 | 1.00 / 0.000 |
+| pair_recency | 192 | 70.1 (70.1, 70.1, 70.1) | 70.1 | 1.00 / 0.000 |
+| input_only | 0 | 66.0 (66.0, 66.1, 65.8) | 66.2 | 0.84 / 0.025 |
+| input_only | 64 | 64.2 (64.9, 62.8, 64.9) | 64.7 | 0.81 / 0.054 |
+| input_only | 128 | 55.6 (61.3, 58.5, 47.2) | 57.1 | 0.71 / 0.047 |
+| input_only | 192 | 50.2 (24.8, 60.5, 65.2) | 46.9 | 0.62 / 0.068 |
+| controller | 0 | 63.5 (63.6, 64.3, 62.7) | 61.1 | 0.69 / 0.006 |
+| controller | 64 | 46.7 (50.2, 61.5, 28.3) | 40.7 | 0.55 / 0.057 |
+| controller | 128 | 37.5 (61.1, 25.9, 25.5) | 30.2 | 0.45 / 0.095 |
+| controller | 192 | 24.5 (24.8, 24.4, 24.2) | 15.3 | 0.33 / 0.132 |
+
+pair_recency: delay 192 - delay 0 = +0.0 pp (seeds at 192: [70.1, 70.1, 70.1]) -> not delay-sensitive
+input_only: delay 192 - delay 0 = -15.8 pp (seeds at 192: [24.8, 60.5, 65.2]) -> delay-sensitive
+controller: delay 192 - delay 0 = -39.1 pp (seeds at 192: [24.8, 24.4, 24.2]) -> delay-sensitive
+
+Predictions: pair_recency flat within 1 pp: held exactly (70.1 at every δ, every seed).
+input_only within 2 pp of 66.0: failed (64.2 / 55.6 / 50.2; bimodal at δ = 192: 24.8, 60.5,
+65.2). controller loses 1-5 pp at δ = 192: failed by an order of magnitude (−39.1 pp; every
+seed at 24.2-24.8, and 15.3 at the 2048 test). Both learned writers are delay-sensitive by
+the rule; the rule is not. Admission moves with it: the controller's pair admission falls
+0.69 → 0.33 and filler rises 0.006 → 0.13 across δ; input_only 0.84 → 0.62 and 0.025 → 0.068.
+Reading: a training effect, not capacity (the rule holds the same slots at every δ): the gate
+is trained only through the recall loss at the queries, and a longer filler gap is a longer
+credit-assignment path through the recurrence; the policy it reaches degrades with it.
+Decision: paper IV-B "Delay sweep" paragraph + Fig. 4; V-A length paragraph; conclusion's
+mechanism list. The result strengthens the paper's reading that the learned gates' failure
+is an optimization-side under-admission, and adds that it worsens with the distance between
+writes and the supervision. S10 closed; no further runs.
 
 ## 2026-10-28 S11 full-attention reference (pre-registered; queued behind S10) — runs/ref/attention_N64_s{0,1,2}
 
