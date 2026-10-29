@@ -149,8 +149,14 @@ Third attempt (disclosed deviation from "one probe"): lr 1e-3 for 24,000 steps, 
 row is reported with its schedule stated (three times the sweep's); if not, the row is
 omitted and the paper says a two-layer attention model did not learn the task under the
 budgets tried, with the numbers.
-Result (24k):
-Decision:
+Result (24k, 3 runs, 04:45-05:35, 11-18 min each beside the delay queue): test 100.0 / 100.0 /
+100.0 % at 512, 99.7 / 99.7 / 98.9 at 1024, 89.8 / 88.8 / 85.1 at 2048; validation 1.0 % at step
+4000 and 99.8-99.9 at 8000 on every seed (abrupt transition at the high rate); best step
+19000-19500. State 2,097,152 B (KV cache at 512). Prediction (>= 99 %) held at the third
+attempt; the 2x/4x evals are recorded, not reported (rotary extrapolation).
+Decision: reported as the first row of Table III with its schedule stated; the H1 paragraph
+says the task is solvable and what it took; the limitations note that the attention model,
+like the learned writers, did not learn at the sweep's 8,000-step schedule.
 
 ## 2026-10-28 A1 analysis: in-place update handling from gate logs (pre-registered 20:40)
 
