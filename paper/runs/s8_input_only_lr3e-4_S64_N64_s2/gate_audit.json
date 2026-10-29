@@ -1,0 +1,15 @@
+{
+  "write_frac": 0.1901925504207611,
+  "slot_entropy": 5.98573637008667,
+  "filled_frac": 0.9998751878738403,
+  "write_by_class": {
+    "queried": 0.8933577537536621,
+    "distractor": 0.8947380781173706,
+    "update": 0.8662317395210266,
+    "other": 0.02891390211880207
+  },
+  "update_key_present": 0.6494140625,
+  "update_in_place": 0.014285714285714285,
+  "checkpoint": "best.pt",
+  "selected_step": 6500
+}

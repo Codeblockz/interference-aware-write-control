@@ -41,6 +41,17 @@ min; P0 controller 105 min, recency 27 min (eager, T=512, 8000 steps). 2026-10-2
 
 ## Status
 
+- 2026-10-28 23:30: **Final-paper pass in progress (plan approved 10-28 evening).** Two audits
+  (method-vs-code, rubric) found: the pre-registered ablation saw key novelty (fixed by S8),
+  "ceiling" claims overstated (replaced by closed forms for three policies, Table II),
+  hidden size applies to the slot MLP only, bf16 covers the memory read, block diagram stale
+  (regenerated), stats needed a seed-level rule (seed t-interval, verdicts "not supported /
+  reversed / supported"), pilot cut to one paragraph. Gate replay (A1): no learned writer ever
+  overwrote an update in place (0.00). Running tonight: S12 (input-only at N = 128, 6 runs,
+  started 22:35), then S11 attention reference (3) and S10 delay sweep (27), chained. Paper
+  has four placeholders for their results (DELAY-RESULT, ATTN-RESULT, N128-INPUT-ONLY-RESULT,
+  DELAY-DISCUSSION). Repo public at https://github.com/Codeblockz/interference-aware-write-control;
+  Ellis-RP3.ipynb regenerates tables/figures from paper/runs and runs the tests.
 - 2026-10-28 19:30: **Sweep complete (108 runs, 0 failures), S8 and S9 done (24 runs).**
   H1 fails against the oracle pair-only reference in all 6 cells (and holds against the
   proposal's own baselines by 20-60 pp above S = 32). H2 refuted as stated: the input-only

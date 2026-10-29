@@ -35,7 +35,7 @@ def L0(n):
     return f"L{512 if n == 64 else 1024}"
 
 
-H2NAME = re.compile(r"^(?:s8_)?(?P<w>[a-z_]+)_lr(?P<lr>[0-9e.-]+)_S(?P<s>\d+)_N(?P<n>\d+)_s(?P<seed>\d+)$")
+H2NAME = re.compile(r"^(?:s8_|h2_)?(?P<w>[a-z_]+)_lr(?P<lr>[0-9e.-]+)_S(?P<s>\d+)_N(?P<n>\d+)_s(?P<seed>\d+)$")  # runs/sweep_h2, runs/step4, or the flat paper/runs copy
 
 
 def load_h2(roots) -> dict:
