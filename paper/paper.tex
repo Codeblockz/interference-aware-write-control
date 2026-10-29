@@ -754,8 +754,8 @@ H2: ctrl $-$ novelty ablation (pp) & -4.8 {\scriptsize[-12, +2]} & +17.9 {\scrip
 Novelty ablation at $3\times10^{-4}$ & -- & 65.8 {\scriptsize$\pm$0.5} & 96.0 {\scriptsize$\pm$0.2} & -- & -- & -- \\
 H2, both at $3\times10^{-4}$ (pp) & -- & -2.3 {\scriptsize[-5, +1]} & -29.2 {\scriptsize[-71, +13]} & -- & -- & -- \\
 H2, both at $10^{-3}$ (pp) & -- & -4.1 {\scriptsize[-14, +6]} & -6.2 {\scriptsize[-42, +30]} & -- & -- & -- \\
-Input-only ablation at $3\times10^{-4}$ & -- & 66.0 {\scriptsize$\pm$0.1} & 94.0 {\scriptsize$\pm$1.4} & -- & -- & -- \\
-Input-only $-$ controller at $3\times10^{-4}$ (pp) & -- & +2.5 {\scriptsize[+1, +4]} & +27.2 {\scriptsize[-13, +67]} & -- & -- & -- \\
+Input-only ablation at $3\times10^{-4}$ & -- & 66.0 {\scriptsize$\pm$0.1} & 94.0 {\scriptsize$\pm$1.4} & -- & 32.5 {\scriptsize$\pm$1.8} & 65.6 {\scriptsize$\pm$1.1} \\
+Input-only $-$ controller at $3\times10^{-4}$ (pp) & -- & +2.5 {\scriptsize[+1, +4]} & +27.2 {\scriptsize[-13, +67]} & -- & +8.8 {\scriptsize[-8, +25]} & +25.8 {\scriptsize[-8, +60]} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -790,8 +790,11 @@ class, i.e.\ it does not discriminate.}
 form of Table~\ref{tab:ceiling} to 0.1~pp; the novelty ablation at its
 selected rate is ahead of the controller here at every budget. (b) The
 controller is the only writer whose recall falls with evaluation length.
-(c) Admission as in Fig.~\ref{fig:sweep}c: the controller admits 42, 34 and
-54\% of pairs at $S = 32$, 64 and 128, the novelty ablation 45, 34 and 98\%.}
+The dotted line is the input-only ablation at
+$3\times10^{-4}$ (run at 64 and 128 slots). (c) Admission as in
+Fig.~\ref{fig:sweep}c: the controller admits 42, 34 and 54\% of pairs at
+$S = 32$, 64 and 128, the novelty ablation 45, 34 and 98\%, the input-only
+ablation 44 and 79\% at 64 and 128 slots.}
 \label{fig:sweep128}
 \end{figure*}
 
@@ -820,8 +823,9 @@ task itself is solvable: the full-attention reference reaches
 ATTN-RESULT at the training length with a 2.1~MB key-value cache against the
 bounded writers' 129~KB of state.
 
-\textit{H2 test.} H2 is not supported at either $N = 64$ budget and reversed
-at $S = 64$. The decisive comparison is the input-only ablation, whose gate
+\textit{H2 test.} H2 is not supported in any of the four cells where it was
+tested at equal learning rate and reversed at $N = 64$, $S = 64$; every seed
+in every cell favours the ablation. The decisive comparison is the input-only ablation, whose gate
 sees nothing derived from the stored keys or values, trained at the
 controller's learning rate: it scores 66.0\% at $S = 64$ (seeds 65.8 to 66.1)
 and 94.0\% at $S = 128$ (93.0 to 95.6). Controller minus input-only is
@@ -843,8 +847,14 @@ ablation at $S = 64$, is a learning-rate artefact: the ablation's selected rate,
 $10^{-3}$, came from a single seed at $S = 32$, and at that rate every learned
 writer writes every pair plus 18 to 23\% of filler. In the capacity-bound
 $S = 32$ cell, at the selected rates, the novelty ablation is ahead of the
-controller on every seed ($[-12, +2]$: not supported). At $N = 128$,
-N128-INPUT-ONLY-RESULT. The interference signal carries no information a
+controller on every seed ($[-12, +2]$: not supported). At $N = 128$ the same
+comparison, run after the sweep on the same seeds, gives the input-only
+ablation 32.5\% at $S = 64$ (seeds 30.4 to 33.6) against the controller's
+23.7, and 65.6\% at $S = 128$ (64.7 to 66.8) against 39.8; controller minus
+input-only is $-8.8$ and $-26$~pp, every seed negative, with seed intervals
+$[-25, +8]$ and $[-60, +8]$ that include zero only because the controller's
+own spread is wide (not supported in both). The input-only ablation is flat in
+length there too, and sits 7.5 and 4.4~pp under the pair-only rule. The interference signal carries no information a
 learned admission gate used on this task: a gate that ignores the stored
 content is within 2~pp of the best learned writer at both $N = 64$ budgets and
 4 to 6~pp under the parameter-free reference.
@@ -1268,7 +1278,8 @@ cells). The controller does beat the three baselines the proposal named, by
 other writer, and that is the rule. An ablation whose gate sees nothing
 derived from the stored keys or values beats the controller at both $N = 64$
 budgets and matches its best ablation, so the interference signal added no
-information a learned gate used (H2 not supported, reversed at 64 slots). The
+information a learned gate used (H2 not supported in all four cells tested at
+equal learning rate, reversed at 64 associations and 64 slots). The
 mechanism is measured, not inferred: the controller admits 69 to 82\% of pairs
 where the rule admits all; the per-slot interference features lower admission
 and widen the seed spread; key novelty moves recall by at most 2~pp; and no

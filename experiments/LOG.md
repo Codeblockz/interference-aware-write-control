@@ -194,8 +194,22 @@ by 5-15 pp at S = 64 and 10-30 pp at S = 128; sits 5-15 pp under pair-only recen
 Decision rule (the paper's new rule, D1): seed-level 95 % t-interval of controller minus
 input-only entirely below 0 -> reversed; all seeds negative but interval includes 0 -> not
 supported; otherwise undecided. Either way the H2 verdict is stated per cell.
-Result:
-Decision:
+Result (6 runs, 2026-10-28 22:35 - 10-29 03:45, 0 failures; test at 1024, best checkpoint):
+
+| S | input_only (seeds) | mean | controller mean | ctrl − input_only per seed | seed interval | admission pairs / filler |
+|---|---|---|---|---|---|---|
+| 64 | 33.6, 30.4, 33.4 | 32.5 | 23.7 | −1.1, −11.3, −13.8 | [−25.4, +7.9] | 0.44/0.011, 0.51/0.048, 0.38/0.001 |
+| 128 | 64.7, 65.4, 66.8 | 65.6 | 39.8 | −10.0, −34.2, −33.1 | [−59.7, +8.1] | 0.81/0.044, 0.68/0.003, 0.89/0.041 |
+
+Flat in length (2048 / 4096 within 0.1 pp of 1024). Prediction held on direction and size
+(+8.8 / +25.8 pp over the controller, inside the predicted 5-15 / 10-30), on the spread
+(1.8 / 1.1 vs the controller's 7.6 / 12.9), and on the gap to pair-only at S = 64 (7.5 pp
+under, inside 5-15); at S = 128 it is 4.4 pp under, just outside the predicted range.
+Decision: by the paper's rule both cells are "not supported" (every seed negative for the
+controller, but the controller's own spread puts the seed interval across zero). H2 is now
+tested at equal learning rate in four cells, not supported in all four and reversed in one.
+The paper's H2 paragraph, Table III (two new cells in the input-only rows), Fig. 3 (dotted
+line) and the conclusion are updated.
 
 ## Audit 2026-10-27 (Ryan: "is there any other oversight that could mess up the entire experiment?")
 

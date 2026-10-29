@@ -125,10 +125,11 @@ def figure(runs, out: Path, n: int = 64, h2=None):
         ax.plot(slots, means, "-", color=color, linewidth=1.8, label=label, zorder=3)
         if pts:
             ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=12, color=color, alpha=0.6, zorder=4)
-    if h2:
+    if h2 and any(k[0] == "no_interference" and k[3] == n for k in h2):
         means = [np.mean([100 * r["eval"][L0(n)]["recall"] for r in h2.get(("no_interference", "3e-4", s, n), {}).values()] or [np.nan]) for s in slots]
         ax.plot(slots, means, "--", color=SERIES["no_interference"][0], linewidth=1.6, label="Novelty ablation at the controller's lr", zorder=3)
-        if any(k[0] == "input_only" for k in h2):
+    if h2:
+        if any(k[0] == "input_only" and k[3] == n for k in h2):
             means = [np.mean([100 * r["eval"][L0(n)]["recall"] for r in h2.get(("input_only", "3e-4", s, n), {}).values()] or [np.nan]) for s in slots]
             ax.plot(slots, means, ":", color=SERIES["input_only"][0], linewidth=1.8, label="Input-only ablation (3e-4)", zorder=3)
     ax.set_xscale("log", base=2); ax.set_xticks(slots); ax.set_xticklabels([str(s) for s in slots])
@@ -188,7 +189,7 @@ def main():
         Path(a.tex).write_text(rows + "\n")
     print(rows)
     if a.fig:
-        figure(runs, Path(a.fig), n=a.fig_n, h2=h2 if a.fig_n == 64 else None)
+        figure(runs, Path(a.fig), n=a.fig_n, h2=h2)
 
 
 if __name__ == "__main__":
