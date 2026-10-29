@@ -48,7 +48,7 @@ Excluded at screening, with reason:
 - Memory-Managed Long-Context Attention (2606.28876): preliminary study, editable table for agents. (exclusion: agent memory)
 - Learning What Not to Forget (2606.20954): agent memory eviction. (exclusion: agent memory)
 - Chain-of-Thought and Compressed Looped Transformers (2605.30757): theory of CoT budget, cited only for the capacity-scaling observation. (criterion 2)
-- GatedFWA (2512.07782): windowed attention with gated memory; abstract not verified in time. (deferred to RP3 screening)
+- GatedFWA (2512.07782): windowed attention with gated memory; abstract verified 2026-10-28: windowed attention with a gated memory, no admission rule over stored content; excluded (criterion 2).
 
 Screened out: 9. Passed to eligibility: 24.
 
@@ -80,11 +80,11 @@ context); Arora 2023 (Zoology, MQAR); Hsieh 2024 (RULER).
 
 | Stage | Count |
 |-------|-------|
-| Identified | 46 |
+| Identified | 46 (+5 online-caching papers hand-added 2026-10-27 from the discussion) |
 | After duplicate removal | 33 |
 | Screened out (title/abstract) | 9 |
 | Assessed for eligibility | 24 |
-| Included in synthesis | 24 |
+| Included in synthesis | 29 (24 + 5) |
 
 ## Gap this paper targets
 

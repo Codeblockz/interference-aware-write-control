@@ -148,24 +148,26 @@ def figure(runs, out: Path, n: int = 64, h2=None):
     ax.set_xlabel("evaluation length"); ax.set_ylim(-3, 103)
     style(ax, f"(b) length generalization, S = {s_mid}")
     ax = axes[2]
-    gated = [("controller", "controller"), ("no_interference", "ablation"), ("residual", "residual")]
-    x = np.arange(len(slots)); width = 0.13
+    gated = [("controller", "controller"), ("no_interference", "novelty abl."), ("residual", "residual")]
+    if h2 and any(k[0] == "input_only" for k in h2):
+        gated.insert(2, ("input_only", "input-only abl."))
+    x = np.arange(len(slots)); width = 0.10
     for i, (w, short) in enumerate(gated):
         color = SERIES[w][0]
         pairs, filler = [], []
         for s in slots:
-            recs = runs.get((w, s, n), {})
+            recs = h2.get((w, "3e-4", s, n), {}) if (w == "input_only" and h2) else runs.get((w, s, n), {})
             best = [max(r["history"], key=lambda e: e["val_recall"]) for r in recs.values()]
             pairs.append(100 * np.mean([e["write_by_class"]["queried"] for e in best]) if best else np.nan)
             filler.append(100 * np.mean([e["write_by_class"]["other"] for e in best]) if best else np.nan)
-        off = (i - 1) * 2.3 * width
+        off = (i - (len(gated) - 1) / 2) * 2.3 * width
         ax.bar(x + off - width / 2, pairs, width, color=color, label=f"{short}: pairs")
         ax.bar(x + off + width / 2, filler, width, color="none", edgecolor=color, hatch="////", linewidth=0.8, label=f"{short}: filler")
     ax.set_xticks(x); ax.set_xticklabels([f"S={s}" for s in slots]); ax.set_ylim(0, 105)
     ax.set_ylabel("% of positions written")
     style(ax, "(c) admission at the best checkpoint")
-    ax.legend(fontsize=6, frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.0))
-    ax.set_ylim(0, 125); ax.set_yticks([0, 25, 50, 75, 100])
+    ax.legend(fontsize=5.5, frameon=False, ncol=2, loc="upper right")
+    ax.set_ylim(0, 160); ax.set_yticks([0, 25, 50, 75, 100])
     fig.legend(*handles, fontsize=7, frameon=False, loc="lower center", ncol=4)
     fig.tight_layout(rect=(0, 0.11, 1, 1))
     fig.savefig(out, dpi=200)

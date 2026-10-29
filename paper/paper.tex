@@ -55,7 +55,7 @@ defined against the strongest baseline and that is the rule. An ablation whose g
 matches the controller's best ablation and beats the controller at both
 decisive budgets, so the interference signal carries nothing a learned gate
 can use here. Three findings explain why: the 32-slot cell is capacity-bound
-for any writer (an ideal online writer caps at 43\%, any policy at 50\%); learned gates under-admit pairs,
+for any writer (the pair-only rule answers 40\% there by a closed form and no policy can exceed 50\%); the controller under-admits pairs,
 which the admission statistics measure directly; and on a task whose queries
 are uniform over keys, stored content cannot predict reuse, which the online
 caching literature predicts. A pilot with skewed keys, where reuse is
@@ -101,9 +101,9 @@ so early tokens cannot pollute the whole memory. Each rule looks at the
 \emph{position}. None looks directly at the \emph{conflict} between the incoming
 association and what is already stored. This paper tests whether that conflict
 signal helps, under a controlled protocol fixed before the sweep, and finds that
-it does not: on this task a learned writer that ignores the memory's contents
-entirely matches or beats every other learned writer, and a parameter-free
-rule beats them all.
+it does not: on this task a learned writer whose gate sees nothing derived
+from the stored keys or values matches or beats every other learned writer, and
+a parameter-free rule beats them all.
 
 \subsection{Research question and goals}
 
@@ -158,19 +158,22 @@ The contributions are the answers and the tools that produced them:
 \begin{enumerate}
 \item \textbf{A negative result on both hypotheses, with the mechanism.}
 A learned controller with interference features loses to a parameter-free
-pair-only rule in all six cells (Table~\ref{tab:final}), and an ablation that
-sees nothing from the memory beats the controller at both decisive budgets.
-The gate statistics show why: the controller admits 69 to 82\% of pairs where
-the rule admits all of them.
-\item \textbf{A capacity ceiling for bounded-memory recall.} A simulation of
-the ideal online writer gives the recall it can reach in a cell (43\% at 64
-associations and 32 slots; 50\% for any policy, with perfect foreknowledge). It shows that the proposal's
-target cell could not separate the hypotheses, and it is cheap enough to run
-before any sweep.
-\item \textbf{The pair-only rule as the reference.} Admit-every-pair-and-nothing-else is a reference every cited allocation
-mechanism can be compared against: it
-has no parameters, is 3 to 11~pp under the online ceiling, in part because it does
-not overwrite updates in place, and here beats everything learned.
+pair-only rule in all six cells (Table~\ref{tab:final}), and an ablation whose
+gate sees nothing derived from the stored keys or values beats the controller
+at both $N = 64$ budgets. The gate statistics show why: the controller admits
+69 to 82\% of pairs where the rule admits all of them, and no learned writer
+ever overwrote an updated key in place.
+\item \textbf{A capacity analysis for bounded-memory recall.} Closed forms
+for three idealized policies give, per cell, what the pair-only rule answers
+(40\% at 64 associations and 32 slots), what in-place update handling would
+add (3.8 percentage points, pp), and what no policy can exceed (50\%). They
+show that the proposal's target cell could not separate the hypotheses, in
+which cells H1 was attainable at all, and they cost nothing to compute before
+a sweep.
+\item \textbf{The pair-only rule as the reference.} Admit every pair and
+nothing else is a reference every cited allocation mechanism can be compared
+against: it has no parameters, its recall is the closed form exactly, and
+here it beats everything learned.
 \item \textbf{A protocol lesson.} Hyperparameters selected on one seed, in a
 capacity-bound cell, produced a false positive for H2 that only an
 equal-learning-rate check exposed; the paper reports both comparisons and the
@@ -190,17 +193,23 @@ Section~\ref{sec:conclusion} what the study rules out and what it does not.
 
 \subsection{Survey method}
 
-Following the PRISMA 2009 structure~\cite{moher2009prisma} in a light form suited
-to a course paper: a stated question, explicit eligibility criteria, documented
+Following the structure of the Preferred Reporting Items for Systematic
+Reviews and Meta-Analyses (PRISMA 2009)~\cite{moher2009prisma} in a light form
+suited to a course paper: a stated question, explicit eligibility criteria, documented
 searches, and a flow count. The question was \emph{which mechanisms decide what
 a bounded-memory sequence model writes, and has interference between stored
 associations been used as a write signal?} Three arXiv searches on 2026-10-15,
 the proposal's references, and eleven foundational papers identified 44
 records, and citation chasing from the included papers on 2026-10-24 added
-2 more; 33 were unique; 9 were screened out by title and abstract (retrieval
-augmentation, agent memory, video, serving systems, surveys); 24 were assessed
-and included. The full log with queries and per-record exclusion reasons is in
-the project repository (\texttt{paper/prisma/search-log.md}).
+2 more; 33 were unique; 9 were screened out by title and abstract
+(retrieval augmentation, agent memory, video, serving systems, surveys, a
+chain-of-thought theory paper, a full-cache method, and one windowed-attention
+paper whose abstract could not be verified); 24 were assessed and
+included. Five online-caching papers, hand-added on 2026-10-27 when the
+results called for that theory (Section~\ref{sec:caching-rw}), bring the
+included set to 29. The full log with queries and per-record
+exclusion reasons is in the project repository
+(\texttt{paper/prisma/search-log.md}).
 
 \subsection{Bounded-state backbones and their write rules}
 
@@ -208,13 +217,14 @@ Linear attention~\cite{katharopoulos2020linear} stores associations as a sum of
 outer products $\sum_t v_t k_t^\top$; every token writes with equal weight.
 Fast-weight programmers~\cite{schlag2021fastweight} introduced the delta rule,
 which subtracts the state's current prediction before adding, so a write
-\emph{corrects} rather than accumulates. GLA~\cite{yang2023gla} adds a
-data-dependent decay gate; DeltaNet~\cite{yang2024deltanet} and Gated
+\emph{corrects} rather than accumulates. Gated linear attention
+(GLA)~\cite{yang2023gla} adds a data-dependent decay gate; DeltaNet~\cite{yang2024deltanet} and Gated
 DeltaNet~\cite{yang2024gateddeltanet} make the delta rule and its decay trainable
 at scale; Mamba~\cite{gu2023mamba} reaches a similar place through selective
 state-space parameters. Based~\cite{arora2024based} combines a small
 linear-attention state with sliding-window attention and shows the
-recall-throughput trade-off directly. ABC~\cite{peng2021abc} frames linear
+recall-throughput trade-off directly. Attention with bounded-memory control
+(ABC)~\cite{peng2021abc} frames linear
 attention and several of its relatives as attention over a bounded memory of
 fixed size, with a \emph{control} function that decides how each token is
 organized into the memory, and replaces the heuristic control of earlier
@@ -234,14 +244,25 @@ overlapping writes.
 Neural Turing Machines~\cite{graves2014ntm} and the Differentiable Neural
 Computer~\cite{graves2016dnc} are the classical learned-allocation designs: NTM
 addresses by content and location, DNC adds a usage vector and allocates the
-least-used slot. Our age and usage features are DNC-style; our interference
-features are not in either model. Titans~\cite{behrouz2024titans} gates memory
+least-used slot. NTM's content addressing already computes, for every memory
+row, the cosine similarity between the emitted key and that row, which is our
+first interference feature; what neither model does is use that similarity,
+or the disagreement between the incoming value and the stored one, to decide
+\emph{whether and where to write}. Our age and usage features are DNC-style.
+Titans~\cite{behrouz2024titans} gates memory
 updates by \emph{surprise}, the gradient of a reconstruction loss, which is an
-input-side novelty signal. HOLA~\cite{cui2026hola} admits tokens to an exact
-cache when the delta-rule residual is large, again a property of the token
-against the state's prediction rather than a per-slot conflict.
-Raven~\cite{afzal2026raven} learns an input-dependent router over a fixed slot
-set. ARM~\cite{zeng2026arm} does the same for a Transformer KV cache with a
+input-side novelty signal. HOLA~\cite{cui2026hola} (``a hippocampus for
+linear attention'') keeps an exact key-value cache beside a linear-attention
+state and admits a token when the state's delta-rule prediction residual for
+it is large; the residual is a value-conflict measure, but one aggregated over
+the whole state rather than evaluated per slot, and admission never looks at
+what the cache holds. Our residual-cache writer keeps that admission rule on a
+slot memory. Raven~\cite{afzal2026raven} keeps a fixed set of memory slots and
+routes each token to a subset of them with a learned router conditioned on the
+token; the router's input is the token's own representation, so routing is
+input-dependent by design, and the paper reports recall gains over an unrouted
+state at equal memory. Our novelty ablation is its single-slot analogue. ARM~\cite{zeng2026arm} does the same for a Transformer key-value (KV)
+cache with a
 Gumbel-softmax router and sigmoid-gated blends. IndexMem~\cite{yang2026indexmem}
 trains an indexer to score KV entries for eviction. Fast-weight Product Key
 Memory~\cite{zhao2026fwpkm} updates only activated slots of a large sparse
@@ -251,21 +272,46 @@ of poor fine-grained recall and answers it with an address decoder that maps
 each key to a sparse set of slots, so tokens with disjoint addresses cannot
 interfere. The address is a function of the key alone; the decoder never
 inspects what a slot currently holds. Proteus~\cite{bayat2026proteus} sidesteps allocation by unlocking
-capacity on a position schedule, and Memory Caching~\cite{behrouz2026memcache}
-sidesteps it by letting memory grow. Zoology~\cite{arora2023zoology} and
+memory capacity on a position schedule, so that early tokens cannot occupy
+the whole memory and capacity grows as the sequence does; our position writer
+keeps the schedule without the growth. Memory
+Caching~\cite{behrouz2026memcache} sidesteps allocation by letting memory
+grow. Zoology~\cite{arora2023zoology} and
 RULER~\cite{hsieh2024ruler} supply the recall evaluations the field uses.
+
+\subsection{Online caching}
+\label{sec:caching-rw}
+
+A bounded memory with an admission rule is an online cache, and that
+literature supplies the bounds the discussion uses. Belady's
+rule~\cite{belady1966study} is the offline optimum: evict the entry whose next
+use is farthest away. Sleator and Tarjan~\cite{sleator1985amortized} showed
+that no deterministic online eviction rule is better than a factor of the
+cache size from it in the worst case and that LRU and FIFO meet that bound.
+Learning enters when something observable predicts reuse: Lykouris and
+Vassilvitskii~\cite{lykouris2018competitive} bound caching with a learned
+next-use predictor by its error, Song et al.~\cite{song2020lrb} learn
+Belady's decision from request-stream features, and
+TinyLFU~\cite{einziger2017tinylfu} puts a frequency-based admission filter in
+front of a conventional eviction rule, which is structurally what a learned
+write gate on a slot memory is.
 
 \subsection{The gap}
 
-Every allocation rule above conditions on the input (novelty, surprise,
-residual, router logits, a key's address) or on position (schedule, recency,
-usage). ABC and RAM-Net come nearest, since both learn a per-token slot
-assignment and RAM-Net states interference as its target, but each decides
-from the token alone and avoids conflict by construction rather than measuring
-it. None computes, for each candidate slot, whether the incoming association
-conflicts with the one stored there, even though the capacity analyses say
-that this conflict is what limits recall. The controller in Section~\ref{sec:controller}
-adds exactly that signal and nothing else, so the comparison isolates its value.
+Every allocation rule above decides from the input (novelty, surprise, the
+state's residual, a router's logits, a key's address) or from position
+(schedule, recency), with memory-side statistics such as DNC's usage used only
+to pick a free slot. ABC and RAM-Net come nearest, since both learn a per-token
+slot assignment and RAM-Net states interference as its target, but each
+decides from the token alone and avoids conflict by construction rather than
+measuring it. None compares the incoming association with each slot's
+\emph{value} as well as its key and uses that per-slot conflict as the write
+signal. Lee et al.~\cite{lee2026howlinear} show for superposed linear states
+that recall degrades with the number of overlapping associations; whether the
+same holds for a slot memory, where one-hot writes never overlap but can
+evict, is what the capacity analysis of Section~\ref{sec:protocol} makes
+precise. The controller in Section~\ref{sec:controller} adds the per-slot
+conflict signal and nothing else, so the comparison isolates its value.
 
 %=====================================================================
 \section{Methodology}
@@ -311,8 +357,9 @@ slot memory is read with $q_t$ \emph{before} it is written. The writer compares
 the incoming pair $(k_t, v_t)$ with every slot to form the per-slot features of
 Eq.~\eqref{eq:features} (the novelty ablation zeroes the two interference
 features; the input-only ablation also zeroes novelty)
-and emits the gates $g_{t,j}$ of Eq.~\eqref{eq:gate}; the fixed baselines
-replace this block with their rule (Table~\ref{tab:baselines}). The convex
+and the content projection $z_t$ of $h_t$ feeds its write decision; it emits
+the gates $g_{t,j}$ of Eq.~\eqref{eq:gate}. The rule-based writers replace
+this block with their rule (Table~\ref{tab:baselines}). The convex
 update of Eq.~\eqref{eq:write} writes the memory, and the answer head sees
 $[h_t; r_t]$. Loss is taken at answer positions only.}
 \label{fig:block}
@@ -440,7 +487,8 @@ half-strength writes. The gate is
 \begin{equation}
 \begin{split}
 g_{t,j} &= \sigma(w_t)\, \hat{p}_{t,j},\\
-\hat{p}_{t} &= \onehot\!\big(\argmax_j \ell_{t,j}\big) + \softmax_j(\ell_{t,\cdot}) - \mathrm{sg}\big[\softmax_j(\ell_{t,\cdot})\big],
+\hat{p}_{t} &= \onehot\!\big(\argmax_j \ell_{t,j}\big) + \softmax_j(\ell_{t,\cdot})\\
+&\quad - \mathrm{sg}\big[\softmax_j(\ell_{t,\cdot})\big],
 \end{split}
 \label{eq:gate}
 \end{equation}
@@ -506,7 +554,7 @@ Novelty ablation & controller with $s_{t,j}$, $\delta_{t,j}$ and the pooled disa
 Input-only ablation & controller with novelty zeroed as well: sees $z_t$, $a_j$, $n_j$, $f_j$ only & H2 (as stated) \\
 Recency & $g_{t,j} = 1$ for the first empty, else the oldest slot, at every position & trivial control \\
 Pair-only recency & the recency gate applied only at the value position of a pair (uses the task layout) & reference policy \\
-Residual cache & first empty, else oldest slot, with gate $\sigma\big(\kappa(\lVert r_t(k_t) - v_t\rVert/\sqrt{d} - \tau)\big)$, where $r_t(k_t)$ is the read of Eq.~\eqref{eq:read} with $k_t$ as query; $\tau, \kappa$ learned, initialized to 0.5 and 8 & HOLA~\cite{cui2026hola} \\
+Residual cache & first empty, else oldest slot; gate $\sigma(\kappa(\rho_t - \tau))$ with $\rho_t = \lVert r_t(k_t) - v_t\rVert/\sqrt{d}$ and $r_t(k_t)$ the read of Eq.~\eqref{eq:read} with $k_t$ as query; $\tau, \kappa$ learned (init 0.5, 8) & HOLA~\cite{cui2026hola} \\
 Position activation & slot $j$ (0-indexed) unlocked once $j < \lfloor (t+1) S / T \rfloor + 1$; recency among unlocked slots & Proteus~\cite{bayat2026proteus} \\
 \bottomrule
 \end{tabular}
@@ -608,8 +656,8 @@ handling alone would win.}
 \label{tab:ceiling}
 \centering
 \footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}cccccccc@{}}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}ccccccc@{}}
 \toprule
 $N$ & $S$ & pair-only (meas.) & in-place & bound & H1 margin & in-place part \\
 \midrule
@@ -723,10 +771,14 @@ controller's learning rate (the equal-rate H2 check) and the dotted line the
 input-only ablation at that rate. (b) Recall against evaluation length at $S = 64$:
 flat for every writer except the controller, which loses 2.4~pp from 512 to
 2048. (c) Admission at the best checkpoint: fraction of key-value pairs
-written (solid) and of filler tokens written (hatched). The controller admits
-69\% of pairs at $S = 64$ and 82\% at $S = 128$; the ablation admits every
-pair but also 18--20\% of filler; the residual cache above $S = 32$ writes a
-quarter to a third of every token class, i.e.\ it does not discriminate.}
+(queried and distractor pairs together, whose rates are equal under uniform
+keys) written (solid) and of filler tokens written (hatched), where ``written''
+means the position's gate mass exceeds 0.5. The controller admits 69\% of
+pairs at $S = 64$ and 82\% at $S = 128$; the novelty ablation at its selected
+rate $10^{-3}$ admits every pair but also 18--20\% of filler; the input-only
+ablation at $3\times10^{-4}$ admits 71--91\% of pairs and under 5\% of filler;
+the residual cache above $S = 32$ writes a quarter to a third of every token
+class, i.e.\ it does not discriminate.}
 \label{fig:sweep}
 \end{figure*}
 
@@ -734,11 +786,12 @@ quarter to a third of every token class, i.e.\ it does not discriminate.}
 \centering
 \includegraphics[width=\textwidth]{figures/sweep_n128.png}
 \caption{The $N = 128$ column (training length 1024, tests at 1024, 2048 and
-4096). Same ordering as at $N = 64$ in every cell. Pair-only recency sits at
-its ceiling at $S = 32$ (25 vs 24\%), 3~pp under at $S = 64$ and 11~pp under
-at $S = 128$, the same shortfalls as the matching pairs-per-slot cells at
-$N = 64$. The controller is the only writer whose recall falls with evaluation
-length.}
+4096). (a) Pair-only recency leads in every cell and its recall is the closed
+form of Table~\ref{tab:ceiling} to 0.1~pp; the novelty ablation at its
+selected rate is ahead of the controller here at every budget. (b) The
+controller is the only writer whose recall falls with evaluation length.
+(c) Admission as in Fig.~\ref{fig:sweep}c: the controller admits 42, 34 and
+54\% of pairs at $S = 32$, 64 and 128, the novelty ablation 45, 34 and 98\%.}
 \label{fig:sweep128}
 \end{figure*}
 
@@ -844,9 +897,9 @@ runs at the target, and 7 for the 24 skew-pilot runs.
 validation recall of the best checkpoint at $N = 64$, $S = 32$, seed 0, for
 each writer across the learning-rate grid $\{3\times10^{-4}, 6\times10^{-4},
 10^{-3}\}$ (a probe at $10^{-4}$ never left chance within 8000 steps) and, for
-the controller, hidden sizes $\{32, 64, 128\}$ at $3\times10^{-4}$. Selected:
-controller $3\times10^{-4}$ with hidden size 32; the novelty ablation
-$10^{-3}$ with hidden size 32 (it shares the controller's architecture and
+the controller, slot-MLP widths $\{32, 64, 128\}$ at $3\times10^{-4}$.
+Selected: controller $3\times10^{-4}$ with width 32; the novelty ablation
+$10^{-3}$ with width 32 (it shares the controller's architecture and
 differs only in the removed features); residual cache $6\times10^{-4}$; the
 recency writers and position activation $3\times10^{-4}$ (the latter is at
 chance at every learning rate because it writes at every position at this
@@ -875,9 +928,10 @@ for stability (text). Last block: the controller's slot-MLP width at
 $3\times10^{-4}$.}
 \label{tab:hparams}
 \centering
+\footnotesize
 \begin{tabular}{lccc}
 \toprule
-writer & lr $3\times10^{-4}$ & $6\times10^{-4}$ & $10^{-3}$ \\
+writer & rate $3\times10^{-4}$ & $6\times10^{-4}$ & $10^{-3}$ \\
 \midrule
 controller (width 64) & \textbf{19.0} & 20.9 & 17.6 \\
 novelty ablation (width 64) & 19.4 & 19.0 & \textbf{27.7} \\
@@ -885,7 +939,7 @@ residual cache & 0.1 & \textbf{37.2} & 0.2 \\
 pair-only recency & \textbf{40.1} & 40.1 & 40.0 \\
 position activation & \textbf{0.0} & 0.0 & 0.0 \\
 \midrule
-controller slot-MLP width (lr $3\times10^{-4}$) & 32 & 64 & 128 \\
+slot-MLP width (rate $3\times10^{-4}$) & 32 & 64 & 128 \\
  & \textbf{32.5} & 19.0 & 24.6 \\
 \bottomrule
 \end{tabular}
@@ -954,8 +1008,7 @@ novelty ablation at 96.0\% at 128); at $N = 128$ the gap is 8~pp at both. Agains
 residual cache and position activation are at or near chance above 32 slots,
 naive recency reaches 29\% only at 128 slots, and the controller beats the
 best of the three by 20 to 63~pp in every such cell. H1 nevertheless fails as defined, because it is stated against the
-strongest validation-selected baseline and that baseline is the reference
-the proposal lacked; the margin over the proposal's own baselines is reported
+strongest other writer and that writer is the reference the proposal lacked; the margin over the proposal's own baselines is reported
 as a separate result.
 
 \textit{The interference signal carries nothing usable.} The decisive
@@ -994,12 +1047,14 @@ that is not flat by construction. DELAY-DISCUSSION
 \textit{The writer is an online cache.} The slot memory is a cache of $S$
 entries; each incoming pair is an insertion request that must be accepted or
 dropped before the next token arrives, with no look-ahead. In that vocabulary
-pair-only recency is FIFO eviction behind a perfect admission filter, the
+pair-only recency is first-in-first-out (FIFO) eviction behind a perfect
+admission filter, the
 capacity ceiling of Section~\ref{sec:protocol} is Belady's offline
 optimum~\cite{belady1966study}, and H1 asks whether a learned admission policy
 can beat FIFO online. Sleator and Tarjan~\cite{sleator1985amortized} showed
 that no deterministic online eviction rule is better than a factor of $S$
-from the offline optimum in the worst case, and that LRU and FIFO meet that
+from the offline optimum in the worst case, and that least-recently-used
+(LRU) and FIFO eviction meet that
 bound; the sharper point for this task is that when future requests are
 independent of the past, an online policy has nothing to condition on, and
 the only margin left is admission: rejecting tokens that will never be
@@ -1027,7 +1082,7 @@ of Belady's decision from features of the request stream; and TinyLFU
 a conventional eviction rule, which is structurally what our controller is.
 All three assume a skewed, temporally correlated request stream. We tested
 this condition directly at the pilot scale (24 associations, 16 slots, length
-128, three seeds): queried keys drawn from a Zipf distribution with exponent 2
+128, three seeds; Table~\ref{tab:skew}): queried keys drawn from a Zipf distribution with exponent 2
 over the key vocabulary and distractor keys from its cold remainder, so that
 the key embedding alone predicts whether a pair will be queried; the controller and
 pair-only recency trained for 12{,}000 steps at both distributions, and the
@@ -1054,6 +1109,33 @@ basin-dependence seen there recurs here (one seed in three). A writer that
 could turn the reuse signal into a recall gain would need to reject
 distractors without under-admitting pairs, and the budget where that trade
 pays is one where distractors cost more than a sixth of the slots.
+
+\begin{table}[t]
+\caption{Skewed-key pilot (24 associations, 16 slots, length 128): test recall
+(\%) at the training length, mean over three seeds with the seeds in
+parentheses, and admission at the best checkpoint (fraction of queried pairs /
+of distractor pairs written) at skew 2 and 12{,}000 steps. Skew 0 is the
+uniform key distribution of the sweep; skew 2 draws queried keys with
+probability proportional to rank$^{-2}$ and distractors from the cold
+remainder. The 4{,}000-step rows are seed 0 only.}
+\label{tab:skew}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}llccp{0.27\columnwidth}@{}}
+\toprule
+writer & steps & skew 0 & skew 2 & admission at skew 2 \\
+\midrule
+pair-only recency & 4k & 72.4 & 72.7 & 1.00 / 1.00 \\
+controller & 4k & 51.6 & 63.7 & 0.69 / 0.65 \\
+novelty ablation & 4k & 52.2 & 63.7 & -- \\
+\midrule
+pair-only recency & 12k & 76.4 (76.3/76.3/76.7) & 79.6 (79.3/80.2/79.3) & 1.00 / 1.00 \\
+controller & 12k & 68.8 (69.7/69.6/67.1) & 73.2 (78.5/78.5/62.5) & 0.91/0.50, 0.90/0.24, 0.95/0.95 \\
+novelty ablation & 12k & -- & 69.5 (67.1/74.6/66.7) & 0.81/0.80, 0.91/0.53, 0.64/0.69 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Comparison with the cited mechanisms}
 
