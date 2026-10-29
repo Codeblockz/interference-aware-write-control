@@ -179,7 +179,8 @@ outright, at equal learning rate, on three seeds, at both decisive budgets. The 
 baselines table gets an "input-only" row (this writer; the former "input-only routing"
 row is relabelled "novelty routing"), Table II gets an input-only block next to the
 equal-lr H2 block, and the H2 paragraph leads with this comparison. The remaining H1-vs-
-oracle gap for the best learned writer is 4 pp at both budgets (66.0 / 94.0 vs 70.1 / 100).
+oracle gap for the best learned writer is 4 pp at S = 64 (input_only 66.0 vs 70.1) and 4 pp at
+S = 128 (novelty ablation 96.0 vs 100; input_only 94.0 is 6 pp under).
 
 ## 2026-10-27 S9 controller re-selection at the decisive cell (pre-registered; runs after S8) — runs/step4/s9_controller_lr<lr>_h<hidden>_S64_N64_s{0,1,2}
 

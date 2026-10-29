@@ -74,7 +74,7 @@ def tex_rows(runs, h2=None) -> str:
             cells.append(f"{np.mean(vals):.1f} {{\\scriptsize$\\pm${np.std(vals):.1f}}}" if len(vals) > 1 else f"{vals[0]:.1f}")
         out.append(f"{label} & " + " & ".join(cells) + r" \\")
     out.append(r"\midrule")
-    for name, comp in (("H1: ctrl $-$ best non-learned", None), ("H2: ctrl $-$ novelty ablation", "no_interference")):
+    for name, comp in (("H1: ctrl $-$ best rule-based", None), ("H2: ctrl $-$ novelty ablation", "no_interference")):
         cells = []
         for n, s in CELLS:
             b = comp or max((x for x in NONLEARNED if (x, s, n) in runs), key=lambda x: mean_recall(runs[(x, s, n)], L0(n)), default=None)
