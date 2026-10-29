@@ -130,7 +130,16 @@ Prediction: ≥ 99 % test recall at the training length on all three seeds; the 
 evals are recorded but not reported (rotary extrapolation is a separate known failure). No
 decision rule: the row is descriptive; if a seed is under 95 %, one probe at 1e-3 and the
 paper says which rate is shown.
-Result:
+Result (first attempt, 3 runs at 3e-4, 2026-10-29 03:43-03:49): test recall 1.05, 1.06, 1.01 %
+at 512; loss stuck at the unigram floor (8.32 at step 1000, 8.21 at 4000). Prediction failed.
+Diagnosis (04:30): causality and gradient tests pass, the rotary embedding rotates as
+documented, and on an 8-pair toy task the attention backbone reaches 98.2 % (lr 1e-3) and
+99.8 % (lr 3e-3) in 3,000 steps where 800 steps at 3e-4 gave 3.7 %: the induction circuit
+forms late and needs a higher rate; the GLA model gets previous-token information from its
+recurrence for free. Per the rule, the 1e-3 probe is launched (3 seeds); a 3e-3 probe is
+added beside it (disclosed deviation: two probes, not one), both at 8,000 steps, beside the
+delay queue. The paper reports the rate shown and that 3e-4 did not learn.
+Result (probes):
 Decision:
 
 ## 2026-10-28 A1 analysis: in-place update handling from gate logs (pre-registered 20:40)

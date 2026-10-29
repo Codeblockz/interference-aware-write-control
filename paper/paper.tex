@@ -13,7 +13,6 @@
 \DeclareMathOperator*{\softmax}{softmax}
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator{\onehot}{onehot}
-% \pending{} marks text not yet final.
 \newcommand{\pending}[1]{\textcolor{gray!70!black}{\textit{[Final paper: #1]}}}
 
 \begin{document}
@@ -48,14 +47,18 @@ sharing one backbone, budget, and data, and test them on multi-query
 associative recall with key updates and distractors across 64 and 128
 associations and 32, 64, and 128 slots, three seeds per cell, paired on
 identical test sequences. Neither hypothesis holds. A parameter-free rule that admits every
-key-value pair and nothing else beats every learned writer in every cell, by
-6.6 points at 64 associations and 64 slots; the controller does beat the
-proposal's own three baselines, by 20 to 63 points above 32 slots, but H1 is
-defined against the strongest baseline and that is the rule. An ablation whose gate sees nothing derived from the stored memory
-matches the controller's best ablation and beats the controller at both
-decisive budgets, so the interference signal carries nothing a learned gate
-can use here. Three findings explain why: the 32-slot cell is capacity-bound
-for any writer (the pair-only rule answers 40\% there by a closed form and no policy can exceed 50\%); the controller under-admits pairs,
+key-value pair and nothing else beats every learned writer in every cell, the
+controller by 6.6 points and the best learned writer by 4 at 64 associations
+and 64 slots; the controller does beat the recency, residual-cache and
+position-schedule controls the proposal named, by 20 to 63 points above 32
+slots, but H1 is defined against the strongest other writer and that is the
+rule. An ablation whose gate sees nothing derived from the stored keys or
+values comes within 3 points of or beats every other learned writer and
+beats the controller at every budget where it was run, so the interference
+signal carries nothing a learned gate used here. Three findings explain why:
+the proposal's 32-slot cell is capacity-bound for any writer (at 64
+associations the pair-only rule answers 40\% there by a closed form and no
+policy can exceed 50\%); the controller under-admits pairs,
 which the admission statistics measure directly; and on a task whose queries
 are uniform over keys, stored content cannot predict reuse, which the online
 caching literature predicts. A pilot with skewed keys, where reuse is
@@ -102,8 +105,8 @@ so early tokens cannot pollute the whole memory. Each rule looks at the
 association and what is already stored. This paper tests whether that conflict
 signal helps, under a controlled protocol fixed before the sweep, and finds that
 it does not: on this task a learned writer whose gate sees nothing derived
-from the stored keys or values matches or beats every other learned writer, and
-a parameter-free rule beats them all.
+from the stored keys or values comes within 3 points of or beats every other
+learned writer, and a parameter-free rule beats them all.
 
 \subsection{Research question and goals}
 
@@ -125,34 +128,42 @@ cross-entropy.
 
 \subsection{Hypotheses}
 
-\textbf{H1.} At matched total memory and training compute, the controller
-improves exact recall by at least five percentage points over the strongest
-validation-selected baseline on sequences with 64 to 128 distinct associations
-at slot budgets of 32, 64, and 128. ``Matched training compute'' means
-equal steps and batch size, not equal wall time; the strongest baseline is
-whichever writer other than the controller scores highest on validation in that
-cell, which in every cell is the pair-only recency rule added after the
-proposal (Section~\ref{sec:changes}). Exact recall is defined in
-Section~\ref{sec:protocol}.
+\textbf{H1} (as proposed). At matched total memory and training compute, the
+controller will improve exact recall by at least five percentage points over
+the strongest validation-selected baseline on tests with 64 to 128 distinct
+associations and a 32-slot budget.
 
-\textbf{H2.} Removing the interference features while holding the controller's
-size fixed reduces that gain, showing that the interference signal carries
-information the input alone does not.
+\textbf{H2} (as proposed). Removing the interference signal while holding
+controller size fixed will reduce this gain, indicating that the signal
+supplies useful information.
+
+Two things were fixed after the proposal and before the sweep
+(Section~\ref{sec:changes}): the slot budgets tested are 32, 64, and 128,
+because a capacity analysis showed the 32-slot cell cannot separate the
+hypotheses, and H2 is operationalized as the comparison against an ablation
+whose gate sees nothing derived from the stored memory, with the literal
+ablation (interference features zeroed) reported beside it. ``Matched
+training compute'' means equal steps and batch size, not equal wall time.
+``Strongest other writer'' means whichever writer other than the controller,
+ablations included, scores highest on validation in a cell. Exact recall is
+defined in Section~\ref{sec:protocol}.
 
 \subsection{Approach and contributions}
 
 The applied ML problem is supervised sequence-to-token prediction on a
 synthetic recall task. The method of analysis is a controlled architecture
-comparison: seven writers (the controller, two ablations of it, one modeled
-on Raven's router, and four rule-based writers, two modeled on HOLA and
-Proteus) on one
-backbone, one memory, one data distribution, and one training schedule, with
+comparison: seven writers on one backbone, one memory, one data
+distribution, and one training schedule: the controller; its two ablations
+(the input-only one being the analogue of Raven's router); and four rule-based
+writers, naive recency, pair-only recency, a residual cache modeled on HOLA,
+and a position schedule modeled on Proteus; with
 three seeds per cell, paired bootstrap intervals over shared test sequences,
 and explicit state-byte accounting. Every batch of runs after the proposal's
 pilot was pre-registered with a prediction in a lab notebook before launch, and every change to the
 protocol after the proposal is listed in Section~\ref{sec:changes}.
-Everything is implemented in PyTorch; 108 sweep runs plus 60 follow-up runs
-completed without a failure on one GPU.
+Everything is implemented in PyTorch; the 108 sweep runs and the 72
+follow-up runs at the target reported in Section~\ref{sec:results} completed
+without a failure on one GPU.
 
 The contributions are the answers and the tools that produced them:
 \begin{enumerate}
@@ -160,9 +171,10 @@ The contributions are the answers and the tools that produced them:
 A learned controller with interference features loses to a parameter-free
 pair-only rule in all six cells (Table~\ref{tab:final}), and an ablation whose
 gate sees nothing derived from the stored keys or values beats the controller
-at both $N = 64$ budgets. The gate statistics show why: the controller admits
-69 to 82\% of pairs where the rule admits all of them, and no learned writer
-ever overwrote an updated key in place.
+at every budget where it was run. The gate statistics show why: the
+controller admits 34 to 82\% of pairs where the rule admits all of them, and
+no learned writer overwrote updated keys in place above the chance rate of
+the rule itself.
 \item \textbf{A capacity analysis for bounded-memory recall.} Closed forms
 for three idealized policies give, per cell, what the pair-only rule answers
 (40\% at 64 associations and 32 slots), what in-place update handling would
@@ -193,9 +205,9 @@ Section~\ref{sec:conclusion} what the study rules out and what it does not.
 
 \subsection{Survey method}
 
-Following the structure of the Preferred Reporting Items for Systematic
-Reviews and Meta-Analyses (PRISMA 2009)~\cite{moher2009prisma} in a light form
-suited to a course paper: a stated question, explicit eligibility criteria, documented
+The survey follows the structure of the Preferred Reporting Items for
+Systematic Reviews and Meta-Analyses (PRISMA 2009)~\cite{moher2009prisma} in a
+light form suited to a course paper: a stated question, explicit eligibility criteria, documented
 searches, and a flow count. The question was \emph{which mechanisms decide what
 a bounded-memory sequence model writes, and has interference between stored
 associations been used as a write signal?} Three arXiv searches on 2026-10-15,
@@ -204,7 +216,7 @@ records, and citation chasing from the included papers on 2026-10-24 added
 2 more; 33 were unique; 9 were screened out by title and abstract
 (retrieval augmentation, agent memory, video, serving systems, surveys, a
 chain-of-thought theory paper, a full-cache method, and one windowed-attention
-paper whose abstract could not be verified); 24 were assessed and
+paper with a gated memory but no admission rule); 24 were assessed and
 included. Five online-caching papers, hand-added on 2026-10-27 when the
 results called for that theory (Section~\ref{sec:caching-rw}), bring the
 included set to 29. The full log with queries and per-record
@@ -261,7 +273,9 @@ slot memory. Raven~\cite{afzal2026raven} keeps a fixed set of memory slots and
 routes each token to a subset of them with a learned router conditioned on the
 token; the router's input is the token's own representation, so routing is
 input-dependent by design, and the paper reports recall gains over an unrouted
-state at equal memory. Our novelty ablation is its single-slot analogue. ARM~\cite{zeng2026arm} does the same for a Transformer key-value (KV)
+state at equal memory. Our input-only ablation, whose gate sees the token's
+representation and the slots' age, usage and occupancy, is its single-slot
+analogue; our novelty ablation adds one memory-derived signal to it. ARM~\cite{zeng2026arm} does the same for a Transformer key-value (KV)
 cache with a
 Gumbel-softmax router and sigmoid-gated blends. IndexMem~\cite{yang2026indexmem}
 trains an indexer to score KV entries for eviction. Fast-weight Product Key
@@ -287,7 +301,8 @@ literature supplies the bounds the discussion uses. Belady's
 rule~\cite{belady1966study} is the offline optimum: evict the entry whose next
 use is farthest away. Sleator and Tarjan~\cite{sleator1985amortized} showed
 that no deterministic online eviction rule is better than a factor of the
-cache size from it in the worst case and that LRU and FIFO meet that bound.
+cache size from it in the worst case and that least-recently-used (LRU) and
+first-in-first-out (FIFO) eviction meet that bound.
 Learning enters when something observable predicts reuse: Lykouris and
 Vassilvitskii~\cite{lykouris2018competitive} bound caching with a learned
 next-use predictor by its error, Song et al.~\cite{song2020lrb} learn
@@ -330,11 +345,14 @@ power-law gap distribution, shifted by a minimum delay $\delta$ so delay is a
 separate knob (the generator applies $2\lfloor\delta/2\rfloor$ so that queries
 stay on even positions). The vocabulary of $V$ tokens is split into $V/2 - 1$
 key tokens and $V/2$ value tokens. Every position that is not part of a pair or
-a query holds a \emph{filler} token drawn uniformly from the whole vocabulary,
-so a filler token can coincide with a queried key; at the sweep's sizes this
-happens before the key's query for 0.95\% (N = 64) and 1.85\% (N = 128) of
-queries. Loss and metrics use only the $N$ answer positions per sequence; the
-answer token never appears in the input. The generator is adapted from
+a query holds a \emph{filler} token drawn uniformly from the $V - 1$
+non-padding tokens, so a filler token can coincide with a queried key; at the
+sweep's sizes this happens before the key's query for 0.95\% (N = 64) and
+1.85\% (N = 128) of queries. Loss and metrics use only the $N$ answer
+positions per sequence; the prediction at a query is made from the key token,
+and the answer is not presented as the next input (that position holds
+filler), so there is no teacher forcing. The memory has $S$ slots
+(Section~\ref{sec:arch}). The generator is adapted from
 Zoology's \texttt{multiquery\_ar} and \texttt{forgetting\_mqar} (Apache-2.0)
 with the distractor and delay extensions added.
 
@@ -373,16 +391,17 @@ $L$ pre-norm blocks of gated linear attention (GLA)~\cite{yang2023gla}, each
 followed by a multilayer perceptron (MLP), using the
 \texttt{flash-linear-attention} implementation. Per head and layer GLA keeps a
 $d_k \times d_v$ recurrent state $\mathbf{S}_t$ updated with a learned,
-data-dependent decay $\alpha_t \in (0,1)^{d_k}$:
+data-dependent decay $\gamma_t \in (0,1)^{d_k}$:
 \begin{equation}
-\mathbf{S}_t = \mathrm{diag}(\alpha_t)\,\mathbf{S}_{t-1} + \tilde{k}_t^{\top} \tilde{v}_t,
+\mathbf{S}_t = \mathrm{diag}(\gamma_t)\,\mathbf{S}_{t-1} + \tilde{k}_t^{\top} \tilde{v}_t,
 \qquad o_t = \tilde{q}_t \mathbf{S}_t,
 \label{eq:gla}
 \end{equation}
 where $\tilde{q}_t, \tilde{k}_t \in \mathbb{R}^{d_k}$ and $\tilde{v}_t \in
-\mathbb{R}^{d_v}$ are the layer's own projections of its input and $\alpha_t$
-is a low-rank sigmoid gate of the input; the output passes through a gated
-RMS normalization as in the reference implementation. With
+\mathbb{R}^{d_v}$ are the layer's own projections of its input and $\gamma_t$
+is a low-rank sigmoid gate of the input raised to the power $1/16$, as in the
+reference implementation, whose output also passes through a gated root-mean-square
+(RMS) normalization. With
 $d_{\text{model}} = 256$ and 4 heads, $d_k = 32$ and $d_v = 64$, so the state
 is $2 \times 4 \times 32 \times 64$ fp32 values, 64~KB per sequence. Both the
 pilot and the sweep use $L = 2$; the sweep's vocabulary is 8192 (5.99M
@@ -414,7 +433,8 @@ r_t &= \sum_j \alpha_{t,j} v_j ,
 \end{equation}
 so an empty slot is down-weighted by a factor of $10^{-6}$ rather than removed,
 and an empty memory reads a uniform average of zero vectors.
-Write is a convex update of every slot, as in the proposal:
+Write is a convex update of every slot with the writer's gate $g_{t,j} \in
+[0, 1]$ for slot $j$, as in the proposal:
 \begin{equation}
 m_{t,j} = (1 - g_{t,j})\, m_{t-1,j} + g_{t,j}\, u_t,
 \label{eq:write}
@@ -445,11 +465,11 @@ For each slot $j$ the controller builds a six-dimensional feature vector
 \begin{equation}
 \begin{split}
 \phi_{t,j} = \Big[\,
-&\underbrace{s_{t,j},\; \delta_{t,j}}_{\text{interference}},\;
+&\underbrace{s_{t,j},\; e_{t,j}}_{\text{interference}},\;
 \underbrace{1 - \max_{j'} s_{t,j'}}_{\text{novelty}},\;
 \tfrac{a_j}{T},\; \tfrac{n_j}{T},\; f_j \,\Big],\\
 s_{t,j} &= \frac{f_j\, k_t^\top k_j}{\sqrt{\lVert k_t\rVert^2 + \epsilon}\,\sqrt{\lVert k_j\rVert^2 + \epsilon}},\\
-\delta_{t,j} &= \frac{\sqrt{\lVert v_t - v_j\rVert^2 + \epsilon}}{\sqrt{d}},
+e_{t,j} &= \frac{\sqrt{\lVert v_t - v_j\rVert^2 + \epsilon}}{\sqrt{d}},
 \end{split}
 \label{eq:features}
 \end{equation}
@@ -457,8 +477,8 @@ where $T$ is the sequence length, $s_{t,j}$ is the cosine similarity of the
 incoming key to the slot's key weighted by the slot's occupancy, and
 $\epsilon = 10^{-2}$ keeps the gradient of the normalizations bounded when a
 slot key is near zero (the gradient of $1/\lVert x\rVert$ is unbounded at the
-origin, and empty slots start there; a pilot diagnostic traced a loss
-divergence to this). The first feature is high when the incoming
+origin, and empty slots start there; a pilot diagnostic traced gradient-norm
+spikes of $10^4$ to $10^5$ to this). The first feature is high when the incoming
 key would land on a slot that already holds a similar key, which is the
 condition under which a write \emph{overwrites} rather than \emph{adds}. The
 second says whether that overwrite would change the stored answer. Together they
@@ -470,20 +490,21 @@ A two-layer MLP (the \emph{slot MLP}, hidden width $H_s$) maps the six
 features $\phi_{t,j}$ to a logit $\ell_{t,j}$ that decides \emph{where} a write
 goes. A second two-layer MLP (the \emph{write MLP}, hidden width 64, fixed)
 decides \emph{whether} to write at all, producing a scalar logit $w_t$ from a
-pooled memory summary, the novelty, the mean occupancy $\frac{1}{S}\sum_j f_j$
-and the mean value disagreement $\frac{1}{S}\sum_j \delta_{t,j}$, concatenated
-with $z_t = W_z h_t + b_z \in \mathbb{R}^{16}$, a low-dimensional projection of
-the current token's representation. The content input is what lets the
+three-value memory summary (the novelty, the mean occupancy
+$\frac{1}{S}\sum_j f_j$, and the mean value disagreement
+$\frac{1}{S}\sum_j e_{t,j}$) concatenated with $z_t = W_z h_t + b_z \in
+\mathbb{R}^{16}$, a low-dimensional projection of the current token's
+representation, 19 inputs in all. The content input is what lets the
 controller learn that a value token following a key is worth storing and a
 filler token is not; without it the decision to write can depend only on memory
-statistics, and in the pilot diagnostics the controller then learned on some
-seeds and not others (Section~\ref{sec:pilot}). A learnable scalar prior
+statistics, and in the pilot diagnostic adding it took a 16-pair task from 3\%
+to 92\% recall at 1{,}400 steps (Section~\ref{sec:pilot}). A learnable scalar prior
 $\lambda$ (initialized to 5) adds $\lambda\,(a_j/T + 1 - f_j)$ to $\ell_{t,j}$,
 so at initialization the slot choice prefers empty and then oldest slots, which
 is the recency writer's rule; the slot MLP only has to learn deviations from
-it. The write MLP's output bias is initialized to zero, so $\sigma(w_t) = 0.5$
-at initialization and the controller starts as a soft recency writer with
-half-strength writes. The gate is
+it. The write MLP's output bias is initialized to zero, so $\sigma(w_t)$ is
+centred on $0.5$ at initialization and the controller starts as a soft recency
+writer with roughly half-strength writes. The gate is
 \begin{equation}
 \begin{split}
 g_{t,j} &= \sigma(w_t)\, \hat{p}_{t,j},\\
@@ -496,9 +517,11 @@ where $\sigma$ is the logistic function and $\mathrm{sg}$ stops gradients: the
 forward pass writes exactly one slot (a straight-through estimator) and the
 backward pass uses the gradient of the softmax in its place. The write can
 still be suppressed entirely through $\sigma(w_t)$. A fully soft gate was
-tried first and did not learn: at initialization it spreads each association
-across all slots, the memory never holds a retrievable entry, and so no
-gradient arrives to sharpen it. Hard forward selection with a soft backward
+tried first and did not learn at the target (a probe stayed at chance for
+4{,}000 steps with a write fraction of 0.03) and learned more slowly on small
+tasks; our reading, not separately tested, is that a soft gate spreads each
+association across slots at initialization, so the memory never holds a
+retrievable entry and no gradient arrives to sharpen it. Hard forward selection with a soft backward
 path is the same device ARM uses for its slot router~\cite{zeng2026arm}. In
 the sweep ($H_s = 32$, chosen on validation, Section~\ref{sec:protocol}) the
 gate networks have 1{,}603 parameters including $\lambda$, and the content
@@ -508,17 +531,16 @@ per-sequence state beyond the memory's own age, usage, and occupancy scalars,
 which are counted in the budget.
 
 \textbf{H2 ablations.} Setting \texttt{interference=False} zeroes the two
-per-slot interference features $s_{t,j}$ and $\delta_{t,j}$ and the pooled mean
+per-slot interference features $s_{t,j}$ and $e_{t,j}$ and the pooled mean
 disagreement, and leaves everything else identical, including parameter count.
-It keeps the novelty feature, which is itself derived from the stored keys, so
-this \emph{novelty ablation} is a router that sees whether the incoming key is
-already in memory but not where or with what value. It was designed as the
-simplified form of Raven's routing signal and pre-registered as the H2
-ablation; a code audit after the sweep found it had been labelled
-``input-only'', which it is not. A second ablation, \texttt{novelty=False} as
-well, is the \emph{input-only ablation}: its gate sees the content projection
-$z_t$ and the slots' age, usage and occupancy, nothing derived from stored keys
-or values. H2 as stated is the comparison against the input-only ablation; the
+It keeps the key-novelty feature, which is itself derived from the stored
+keys, so this \emph{novelty ablation} is a router that sees whether the
+incoming key is already in memory but not where or with what value; it is the
+pre-registered H2 ablation. A second ablation, \texttt{novelty=False} as well,
+is the \emph{input-only ablation}: its gate sees the content projection $z_t$
+and the slots' age, usage and occupancy, nothing derived from stored keys or
+values; it is the single-slot analogue of Raven's input-dependent router. H2
+is decided against the input-only ablation (Section~\ref{sec:changes}); the
 novelty ablation separates the per-slot detail from the global signal, and the
 two readings give the same sign in every cell where both were run
 (Section~\ref{sec:final-results}).
@@ -532,8 +554,8 @@ cited mechanisms are deliberate simplifications, re-implemented from the
 papers' descriptions because none had public code at the time of writing, and
 each drops something: the residual cache keeps HOLA's residual-threshold
 admission but not its exact (lossless) cache or the residual of a full language
-model; the novelty ablation keeps Raven's input-dependent routing but not its
-top-$k$ multi-slot assignment; position activation keeps Proteus's position
+model; the input-only ablation keeps Raven's input-dependent routing but not
+its top-$k$ multi-slot assignment; position activation keeps Proteus's position
 schedule but not the capacity growth that is its point. The pair-only recency
 rule uses one fact about the task, which positions hold pairs, so it is a
 reference policy rather than a deployable writer.
@@ -550,8 +572,8 @@ writer and no slot memory.}
 Writer & Gate rule & Role / models \\
 \midrule
 Interference controller & Eq.~\eqref{eq:gate} on the six features of Eq.~\eqref{eq:features} & proposed \\
-Novelty ablation & controller with $s_{t,j}$, $\delta_{t,j}$ and the pooled disagreement zeroed; keeps novelty & H2 (literal); Raven~\cite{afzal2026raven} \\
-Input-only ablation & controller with novelty zeroed as well: sees $z_t$, $a_j$, $n_j$, $f_j$ only & H2 (as stated) \\
+Novelty ablation & controller with $s_{t,j}$, $e_{t,j}$ and the pooled disagreement zeroed; keeps key novelty & pre-registered H2 ablation \\
+Input-only ablation & controller with novelty zeroed as well: sees $z_t$, $a_j$, $n_j$, $f_j$ only & decides H2; Raven~\cite{afzal2026raven} \\
 Recency & $g_{t,j} = 1$ for the first empty, else the oldest slot, at every position & trivial control \\
 Pair-only recency & the recency gate applied only at the value position of a pair (uses the task layout) & reference policy \\
 Residual cache & first empty, else oldest slot; gate $\sigma(\kappa(\rho_t - \tau))$ with $\rho_t = \lVert r_t(k_t) - v_t\rVert/\sqrt{d}$ and $r_t(k_t)$ the read of Eq.~\eqref{eq:read} with $k_t$ as query; $\tau, \kappa$ learned (init 0.5, 8) & HOLA~\cite{cui2026hola} \\
@@ -574,14 +596,15 @@ including the memory read, the similarity features and the gate MLPs; the
 memory tensors and the convex update of Eq.~\eqref{eq:write} are fp32. The
 learning rate is selected per writer and the controller's slot-MLP width
 $H_s$ on validation (Section~\ref{sec:protocol}); the selected values are
-$3 \times 10^{-4}$ and $H_s = 32$ for the controller and the input-only
-ablation, $10^{-3}$ for the novelty ablation, $6 \times 10^{-4}$ for the
+$3 \times 10^{-4}$ and $H_s = 32$ for the controller (inherited, not
+selected, by the input-only ablation, which was added later), $10^{-3}$ for
+the novelty ablation, $6 \times 10^{-4}$ for the
 residual cache, and $3 \times 10^{-4}$ for the rule-based writers. The pilot
 used $3 \times 10^{-4}$, $H_s = 64$, batch 64, 200 warmup steps, and 4{,}000
 steps. State bytes per sequence are reported as the backbone's recurrent state
 plus $S(2d + 3)$ fp32 values of memory plus any writer statistics (zero for
-every writer; the residual cache reports 4~B as an accounting artefact of its
-scalar parameters); at $S = 64$ that is 64~KB backbone and 65~KB memory,
+every writer except the residual cache, whose 4~B is an accounting artefact
+of its scalar parameters); at $S = 64$ that is 64~KB backbone and 65~KB memory,
 129~KB in all. The per-timestep memory update is compiled and the whole
 training step captured as a CUDA graph; the compiled path is tested to be
 numerically identical to the eager loop for every writer and is 3.4 times
@@ -617,18 +640,19 @@ $N = 64$, $S = 64$. The $N = 64$ column trains at length 512 and tests at 512,
 1024, and 2048; the $N = 128$ column trains at length 1024 and tests at 1024,
 2048, and 4096. Test sequences are freshly generated.
 
-\textit{Capacity analysis.} Three idealized write policies bound what a
+\textit{Capacity analysis.} Three idealized write policies locate what a
 writer can do in a cell, and all three have closed forms
 (Table~\ref{tab:ceiling}; the generator-replay simulation in
-\texttt{experiments/analysis/ceiling.py} agrees with them within 0.5~pp). Let
+\texttt{experiments/analysis/ceiling.py} agrees with them within 0.6~pp). Let
 $P = N + D$ be the context pairs and $Q = N - U$ the queried keys whose context
 value is final. A policy that admits every pair at its value position, writes
 an update to a fresh slot, and evicts the oldest slot holds the last $S$ pair
 writes, so it answers $U + \min(S - U, P)\,Q/P$ of the $N$ queries; this is
 the pair-only recency writer, and its measured recall matches the formula to
 0.1~pp in every cell. The same policy with updates overwritten in place holds
-$U + \min(S - U, Q + D)\,Q/(Q + D)$, the best a rule can do without knowing
-which pairs will be queried. A policy with that foreknowledge, which also
+$U + \min(S - U, Q + D)\,Q/(Q + D)$, the best a FIFO rule can do without
+knowing which pairs will be queried, since whichever $S - U$ non-updated
+pairs it keeps are queried with probability $Q/(Q + D)$ each. A policy with that foreknowledge, which also
 rejects distractors, answers $\min(S, N)/N$, the bound for any writer. At
 $N = 64$, $S = 32$ these are 40.0, 43.8, and 50\%; at $S = 64$, 70.0, 81.3,
 and 100; at $S = 128$ all 100. H1 asks for $+5$~pp over the pair-only rule, so
@@ -638,8 +662,8 @@ least 5~pp: at $N = 64$ in the 32- and 64-slot cells, and at $N = 128$ in the
 $S = 128$; at the bound at $N = 128$, $S = 32$) are reported but cannot
 support H1 by construction. Of the margin a learned policy could win over the
 rule, the part that needs no foreknowledge is the in-place handling of updates
-(3.8~pp where the rule holds half the context, 11.3~pp where it holds most of
-it), which is the behaviour the interference features were designed for;
+(3.8~pp where the rule holds a third of the pair writes, 11.3~pp where it
+holds two thirds), which is the behaviour the interference features were designed for;
 Section~\ref{sec:final-results} measures whether any writer learned it. The
 proposal named $N = 64$, $S = 32$ as its target; the rule's 40\% there leaves
 10~pp to win, less than the learned writers' seed spread, so the hypotheses
@@ -676,8 +700,9 @@ best validation recall during training (the first 1{,}280 validation sequences,
 scored every 500 steps), not at the last step. On this task the cosine tail can
 move a run from the pair-only write policy into a worse one
 (Section~\ref{sec:changes}); best-validation selection reports the policy a
-run reached, and is how the reference MQAR work reports
-accuracy~\cite{arora2023zoology}.
+run reached. The reference MQAR work likewise does not report the last step:
+it reports the best learning rate of a sweep with early stopping at 99\%
+validation accuracy~\cite{arora2023zoology}.
 
 \textit{Metric, seeds, and decision rules.} Exact recall of a sequence is the
 fraction of its $N$ answer positions whose argmax prediction equals the label;
@@ -693,13 +718,19 @@ sampling only. (ii) The three per-seed differences. (iii) A 95\% $t$-interval
 for the mean of the per-seed differences (two degrees of freedom, so
 $\pm 4.30$ standard errors), which is the statistic the verdicts use, because
 with three seeds no sign pattern reaches $p < 0.05$ on its own (three agreeing
-signs give $p = 0.125$ one-sided). Rules, fixed before the results were
-tabulated: H1 is \emph{supported} in a cell if the seed interval of
-controller minus the strongest other writer lies entirely above $+5$~pp,
-\emph{reversed} if it lies entirely below 0, and \emph{not supported}
-otherwise. H2 uses the controller minus the input-only ablation at the same
-learning rate: \emph{supported} if the interval lies above 0, \emph{reversed}
-if below 0, \emph{not supported} otherwise. Secondary metrics: state bytes,
+signs give $p = 0.125$ one-sided). The proposal's pre-registered rule was the
+pooled bootstrap (H1 holds where its lower bound exceeds $+5$~pp); the sweep
+was first tabulated under it, and because its interval ignores seed variance
+the seed-interval rule below replaced it after the sweep and before the last
+follow-up runs (Section~\ref{sec:changes}); both statistics are reported, and
+no verdict below would change under the pooled rule except that every
+``not supported'' cell with all seeds negative would read ``reversed''. Rules:
+H1 is \emph{supported} in a cell if the seed interval of controller minus the
+strongest other writer lies entirely above $+5$~pp, \emph{reversed} if it lies
+entirely below 0, and \emph{not supported} otherwise. H2 uses the controller
+minus the input-only ablation at the same learning rate: \emph{supported} if
+the interval lies above 0, \emph{reversed} if below 0, \emph{not supported}
+otherwise. Secondary metrics: state bytes,
 throughput, and the write-gate statistics (write fraction, fraction of each
 token class written, slot entropy, in-place update rate) that show \emph{how}
 each writer uses its budget.
@@ -1057,14 +1088,12 @@ that is not flat by construction. DELAY-DISCUSSION
 \textit{The writer is an online cache.} The slot memory is a cache of $S$
 entries; each incoming pair is an insertion request that must be accepted or
 dropped before the next token arrives, with no look-ahead. In that vocabulary
-pair-only recency is first-in-first-out (FIFO) eviction behind a perfect
-admission filter, the
+pair-only recency is FIFO eviction behind a perfect admission filter, the
 capacity ceiling of Section~\ref{sec:protocol} is Belady's offline
 optimum~\cite{belady1966study}, and H1 asks whether a learned admission policy
 can beat FIFO online. Sleator and Tarjan~\cite{sleator1985amortized} showed
 that no deterministic online eviction rule is better than a factor of $S$
-from the offline optimum in the worst case, and that least-recently-used
-(LRU) and FIFO eviction meet that
+from the offline optimum in the worst case, and that LRU and FIFO meet that
 bound; the sharper point for this task is that when future requests are
 independent of the past, an online policy has nothing to condition on, and
 the only margin left is admission: rejecting tokens that will never be
@@ -1224,7 +1253,9 @@ Every change is dated in the project's lab notebook; the ones that affect
 interpretation are:
 \begin{enumerate}
 \item \textbf{Target settings.} The proposal's 64-association, 32-slot target
-did not learn with the pilot's four layers and learning rate $10^{-3}$; two
+did not learn in the first pilot (four layers, learning rate $10^{-3}$; the
+pipeline-validation pilot of Section~\ref{sec:pilot} is a later, two-layer
+one); two
 layers and $3 \times 10^{-4}$, found by one-variable probes, became the frozen
 backbone setting; each writer's learning rate was then selected on validation
 (Table~\ref{tab:hparams}). Vocabulary 8192, 8000 steps and weight decay 0.1 were
@@ -1273,9 +1304,12 @@ controller with per-slot interference features loses to a parameter-free rule
 that admits every key-value pair and nothing else, in every cell, by 6.6
 points at the decisive 64-slot cell and by 16 to 33 points elsewhere, every
 seed negative in every cell (H1 not supported anywhere, reversed in three
-cells). The controller does beat the three baselines the proposal named, by
-20 to 63 points above 32 slots, but H1 is defined against the strongest
-other writer, and that is the rule. An ablation whose gate sees nothing
+cells). The controller does beat the recency, residual-cache and
+position-schedule controls the proposal named, by 20 to 63 points above 32
+slots; the proposal's fourth control, input-only routing, is the H2
+comparator and is ahead of the controller wherever it was run at the same
+learning rate; and H1 is defined against the strongest other writer, which is
+the rule. An ablation whose gate sees nothing
 derived from the stored keys or values beats the controller at both $N = 64$
 budgets and matches its best ablation, so the interference signal added no
 information a learned gate used (H2 not supported in all four cells tested at
@@ -1283,8 +1317,9 @@ equal learning rate, reversed at 64 associations and 64 slots). The
 mechanism is measured, not inferred: the controller admits 69 to 82\% of pairs
 where the rule admits all; the per-slot interference features lower admission
 and widen the seed spread; key novelty moves recall by at most 2~pp; and no
-learned writer ever overwrote an updated key in place, the one behaviour the
-interference features were built to enable.
+learned writer overwrote updated keys in place above the chance rate of the
+rule itself, the one behaviour the interference features were built to
+enable.
 
 Three things the study establishes beyond the hypotheses. The proposal's
 target cell is capacity-bound: the pair-only rule answers 40\% there by a
