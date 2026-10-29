@@ -88,7 +88,7 @@ def tex_rows(runs, h2=None, ref=None) -> str:
             cells.append(f"{np.mean(vals):.1f} {{\\scriptsize$\\pm${np.std(vals, ddof=1):.1f}}}" if len(vals) > 1 else f"{vals[0]:.1f}")
         out.append(f"{label} & " + " & ".join(cells) + r" \\")
     out.append(r"\midrule")
-    for name, comp in (("H1: ctrl $-$ best rule-based", None), ("H2: ctrl $-$ novelty ablation", "no_interference")):
+    for name, comp in (("H1: ctrl $-$ strongest other writer", None), ("H2: ctrl $-$ novelty ablation", "no_interference")):
         cells = []
         for n, s in CELLS:
             b = comp or max((x for x in NONLEARNED if (x, s, n) in runs), key=lambda x: mean_recall(runs[(x, s, n)], L0(n)), default=None)
@@ -119,6 +119,12 @@ def tex_rows(runs, h2=None, ref=None) -> str:
                 r = paired_recs(a, b, L0(n)) if a and b else None
                 cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize[{seed_interval(r[3])[0]:+.0f}, {seed_interval(r[3])[1]:+.0f}]}}")
             out.append(r"Input-only $-$ controller at $3\times10^{-4}$ (pp) & " + " & ".join(cells) + r" \\")
+            cells = []
+            for n, s in CELLS:
+                a, b = h2.get(("input_only", "1e-3", s, n), {}), h2.get(("controller", "1e-3", s, n), {})
+                r = paired_recs(a, b, L0(n)) if a and b else None
+                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize[{seed_interval(r[3])[0]:+.0f}, {seed_interval(r[3])[1]:+.0f}]}}")
+            out.append(r"Input-only $-$ controller, both at $10^{-3}$ (pp) & " + " & ".join(cells) + r" \\")
     return "\n".join(out)
 
 
