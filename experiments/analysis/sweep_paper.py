@@ -22,7 +22,7 @@ import numpy as np  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from plot import SERIES, TEXT, MUTED, GRID, style  # noqa: E402
-from sweep_table import load, paired, NONLEARNED, mean_recall  # noqa: E402
+from sweep_table import load, paired, NONLEARNED, mean_recall, seed_interval  # noqa: E402
 from bmem.metrics import bootstrap_ci  # noqa: E402
 
 ROWS = [("controller", "Controller"), ("no_interference", "Novelty ablation"),
@@ -71,7 +71,7 @@ def tex_rows(runs, h2=None) -> str:
                 cells.append("--")
                 continue
             vals = [100 * r["eval"][L0(n)]["recall"] for r in recs.values()]
-            cells.append(f"{np.mean(vals):.1f} {{\\scriptsize$\\pm${np.std(vals):.1f}}}" if len(vals) > 1 else f"{vals[0]:.1f}")
+            cells.append(f"{np.mean(vals):.1f} {{\\scriptsize$\\pm${np.std(vals, ddof=1):.1f}}}" if len(vals) > 1 else f"{vals[0]:.1f}")
         out.append(f"{label} & " + " & ".join(cells) + r" \\")
     out.append(r"\midrule")
     for name, comp in (("H1: ctrl $-$ best rule-based", None), ("H2: ctrl $-$ novelty ablation", "no_interference")):
@@ -82,28 +82,28 @@ def tex_rows(runs, h2=None) -> str:
             if r is None:
                 cells.append("--")
             else:
-                seeds = ", ".join(f"{d:+.0f}" for d in r[3])
-                cells.append(f"{r[0]:+.1f} {{\\scriptsize({seeds})}}")
+                lo, hi = seed_interval(r[3])
+                cells.append(f"{r[0]:+.1f} {{\\scriptsize[{lo:+.0f}, {hi:+.0f}]}}")
         out.append(f"{name} (pp) & " + " & ".join(cells) + r" \\")
     if h2:
         out.append(r"\midrule")
         out.append(r"Novelty ablation at $3\times10^{-4}$ & " + " & ".join(
-            (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f}}}" if recs else "--")(h2.get(("no_interference", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
+            (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()], ddof=1):.1f}}}" if recs else "--")(h2.get(("no_interference", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
         for lr, cget, aget, label in (("3e-4", lambda s, n: runs.get(("controller", s, n), {}), lambda s, n: h2.get(("no_interference", "3e-4", s, n), {}), "H2, both at $3\\times10^{-4}$"),
                                       ("1e-3", lambda s, n: h2.get(("controller", "1e-3", s, n), {}), lambda s, n: runs.get(("no_interference", s, n), {}), "H2, both at $10^{-3}$")):
             cells = []
             for n, s in CELLS:
                 r = paired_recs(cget(s, n), aget(s, n), L0(n)) if cget(s, n) and aget(s, n) else None
-                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize({', '.join(f'{d:+.0f}' for d in r[3])})}}")
+                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize[{seed_interval(r[3])[0]:+.0f}, {seed_interval(r[3])[1]:+.0f}]}}")
             out.append(f"{label} (pp) & " + " & ".join(cells) + r" \\")
         if any(k[0] == "input_only" for k in h2):
             out.append(r"Input-only ablation at $3\times10^{-4}$ & " + " & ".join(
-                (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f}}}" if recs else "--")(h2.get(("input_only", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
+                (lambda recs: f"{np.mean([100 * r['eval'][L0(n)]['recall'] for r in recs.values()]):.1f} {{\\scriptsize$\\pm${np.std([100 * r['eval'][L0(n)]['recall'] for r in recs.values()], ddof=1):.1f}}}" if recs else "--")(h2.get(("input_only", "3e-4", s, n), {})) for n, s in CELLS) + r" \\")
             cells = []
             for n, s in CELLS:
                 a, b = h2.get(("input_only", "3e-4", s, n), {}), runs.get(("controller", s, n), {})
                 r = paired_recs(a, b, L0(n)) if a and b else None
-                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize({', '.join(f'{d:+.0f}' for d in r[3])})}}")
+                cells.append("--" if r is None else f"{r[0]:+.1f} {{\\scriptsize[{seed_interval(r[3])[0]:+.0f}, {seed_interval(r[3])[1]:+.0f}]}}")
             out.append(r"Input-only $-$ controller at $3\times10^{-4}$ (pp) & " + " & ".join(cells) + r" \\")
     return "\n".join(out)
 

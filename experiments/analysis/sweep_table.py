@@ -52,6 +52,30 @@ def gate(recs: dict) -> str:
     return f"{wf:.2f} / {q:.2f} / {o:.2f}"
 
 
+T_975_DF2 = 4.302653  # scipy.stats.t.ppf(0.975, 2); hard-coded to avoid the dependency
+
+
+def seed_interval(per_seed) -> tuple[float, float]:
+    """95 % t-interval for the mean of the per-seed differences (df = n_seeds - 1)."""
+    x = np.asarray(per_seed, dtype=float)
+    if len(x) < 2:
+        return float("nan"), float("nan")
+    from math import sqrt
+    half = T_975_DF2 * x.std(ddof=1) / sqrt(len(x)) if len(x) == 3 else float("nan")
+    return float(x.mean() - half), float(x.mean() + half)
+
+
+def verdict(per_seed, threshold: float = 0.0) -> str:
+    """Pre-registered rule (paper IV-A): 'supported' if the seed interval lies above the
+    threshold, 'reversed' if it lies below 0, else 'not supported'."""
+    lo, hi = seed_interval(per_seed)
+    if lo > threshold:
+        return "supported"
+    if hi < 0:
+        return "reversed"
+    return "not supported"
+
+
 def paired(runs, a, b, s, n, L):
     """Mean difference (pp) and pooled paired bootstrap CI over the seeds both writers have."""
     ra, rb = runs.get((a, s, n), {}), runs.get((b, s, n), {})
@@ -96,12 +120,12 @@ def main():
             if best_nl:
                 r = paired(runs, "controller", best_nl, s, n, L0)
                 if r:
-                    verdict = "holds" if r[1] > 0 else ("fails" if r[2] < 0 else "undecided")
-                    print(f"- H1 S={s}: controller - {best_nl} = {r[0]:+.1f} pp, CI [{r[1]:+.1f}, {r[2]:+.1f}]  {[f'{d:+.1f}' for d in r[3]]}  -> {verdict}")
+                    lo, hi = seed_interval(r[3])
+                    print(f"- H1 S={s}: controller - {best_nl} = {r[0]:+.1f} pp, pooled CI [{r[1]:+.1f}, {r[2]:+.1f}], seed interval [{lo:+.1f}, {hi:+.1f}]  {[f'{d:+.1f}' for d in r[3]]}  -> {verdict(r[3], 5.0)}")
             r = paired(runs, "controller", "no_interference", s, n, L0)
             if r:
-                verdict = "holds" if r[1] > 0 else ("reversed" if r[2] < 0 else "undecided")
-                print(f"- H2 S={s}: controller - no_interference = {r[0]:+.1f} pp, CI [{r[1]:+.1f}, {r[2]:+.1f}]  {[f'{d:+.1f}' for d in r[3]]}  -> {verdict}")
+                lo, hi = seed_interval(r[3])
+                print(f"- H2 S={s}: controller - no_interference = {r[0]:+.1f} pp, pooled CI [{r[1]:+.1f}, {r[2]:+.1f}], seed interval [{lo:+.1f}, {hi:+.1f}]  {[f'{d:+.1f}' for d in r[3]]}  -> {verdict(r[3], 0.0)}")
 
 
 if __name__ == "__main__":
