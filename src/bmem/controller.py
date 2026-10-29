@@ -186,7 +186,16 @@ class PositionWriter(Writer):
         return torch.nn.functional.one_hot(idx, mem.S).to(key.dtype)
 
 
+class NoneWriter(Writer):
+    """No slot memory at all (the full-attention reference): ``RecallModel`` skips the memory
+    loop and feeds a zero readout to the head, so the head's shape is unchanged."""
+
+    def forward(self, mem, key, value, pos, seq_len, ctx=None):
+        return key.new_zeros(key.shape[0], mem.S)
+
+
 WRITERS = {
+    "none": NoneWriter,
     "controller": lambda: InterferenceController(interference=True),
     "no_interference": lambda: InterferenceController(interference=False),
     "input_only": lambda: InterferenceController(interference=False, novelty=False),  # sees nothing from stored keys/values

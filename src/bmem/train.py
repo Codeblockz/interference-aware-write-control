@@ -79,7 +79,7 @@ def evaluate(model: RecallModel, split: MQARBatch, device, batch_size: int = 128
         want_gates = gates and stats is None
         with torch.autocast("cuda", dtype=torch.bfloat16, enabled=bf16):
             logits, info = model(x, return_gates=want_gates)
-        if want_gates:
+        if want_gates and info["gates"] is not None:
             stats = gate_stats(info["gates"], x, y, info["mem"].filled, split.config)
         per_ex.append(recall_per_example(logits, y).cpu())
         n_tok += x.numel()

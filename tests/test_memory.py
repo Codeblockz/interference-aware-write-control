@@ -119,3 +119,24 @@ def test_interference_features_have_bounded_gradients_near_zero_keys():
     (m.similarity(k).sum() + m.value_disagreement(k).sum()).backward()
     assert torch.isfinite(tiny.grad).all()
     assert tiny.grad.abs().max() < 100.0
+
+
+def test_gate_stats_update_in_place():
+    """Hand-built gates: S=3 slots, T=8 tokens laid out as two context pairs (keys 5, 7),
+    one update pair (key 5, new value), then two query positions. The writer writes the
+    first pair to slot 0, the second to slot 1, and the update either back to slot 0
+    (in place) or to slot 2 (fresh)."""
+    import torch
+    from bmem.data import MQARConfig, IGNORE
+    from bmem.metrics import gate_stats
+    cfg = MQARConfig(vocab_size=64, seq_len=8, num_kv_pairs=2, num_updates=1, num_distractors=0)
+    inputs = torch.tensor([[5, 40, 7, 41, 5, 42, 5, 7], [5, 40, 7, 41, 5, 42, 5, 7]])
+    labels = torch.full((2, 8), IGNORE); labels[:, 6] = 42; labels[:, 7] = 41
+    gates = torch.zeros(2, 8, 3)
+    gates[:, 1, 0] = 1.0; gates[:, 3, 1] = 1.0            # context pairs -> slots 0, 1
+    gates[0, 5, 0] = 1.0                                     # batch 0: update in place
+    gates[1, 5, 2] = 1.0                                     # batch 1: update to a fresh slot
+    st = gate_stats(gates, inputs, labels, torch.ones(2, 3), cfg)
+    assert st["update_key_present"] == 1.0
+    assert abs(st["update_in_place"] - 0.5) < 1e-9
+    assert st["write_by_class"]["update"] == 1.0

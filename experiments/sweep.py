@@ -28,14 +28,21 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--writers", nargs="+", default=WRITERS)
     ap.add_argument("--out", default="runs/sweep")
+    ap.add_argument("--delay", type=int, nargs="+", default=None,
+                    help="delay sweep (LOG S10): emit jobs with data.min_delay in these values instead of the N x S grid; "
+                         "use with --n 64 --slots 64 --writers controller input_only pair_recency; out dirs <writer>_d<delay>_S<S>_N<N>_s<seed>")
     a = ap.parse_args()
     selected = yaml.safe_load((ROOT / "experiments/configs/selected.yaml").read_text())
     n_jobs = n_skip = 0
+    delays = a.delay if a.delay else [None]
     for n in a.n:
         for s in a.slots:
             for seed in a.seeds:
                 for w in a.writers:
-                    out = Path(a.out) / f"{w}_S{s}_N{n}_s{seed}"
+                  for d in delays:
+                    out = Path(a.out) / (f"{w}_d{d}_S{s}_N{n}_s{seed}" if d is not None else f"{w}_S{s}_N{n}_s{seed}")
+                    extra = f" --set data.min_delay={d}" if d is not None else ""
+                    tag = f"delay sweep d={d} S={s} N={n}" if d is not None else f"sweep S={s} N={n}"
                     res = ROOT / out / "results.json"
                     if res.exists() and json.loads(res.read_text()).get("status") == "done":
                         n_skip += 1
@@ -43,8 +50,8 @@ def main():
                     sets = " ".join(f"--set {k}={v}" for k, v in selected[w].items())
                     resume = " --resume" if (ROOT / out / "ckpt.pt").exists() else ""
                     print(f"python experiments/run.py --config {CONFIG[n]} --writer {w} --seed {seed} "
-                          f"--out_dir {out} --set model.fast=true --set model.slots={s} {sets}{resume} "
-                          f"--tag \"sweep S={s} N={n}\"")
+                          f"--out_dir {out} --set model.fast=true --set model.slots={s} {sets}{extra}{resume} "
+                          f"--tag \"{tag}\"")
                     n_jobs += 1
     import sys
     print(f"# {n_jobs} jobs, {n_skip} already done", file=sys.stderr)

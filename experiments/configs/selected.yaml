@@ -7,6 +7,9 @@ controller:
 no_interference:
   train.lr: 1.0e-3
   model.controller_hidden: 32     # same architecture as the controller; only the features differ
+input_only:
+  train.lr: 3.0e-4                # never selected: inherits the controller's setting, as pre-registered in LOG "S8"
+  model.controller_hidden: 32
 residual:
   train.lr: 6.0e-4
 recency:

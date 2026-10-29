@@ -189,3 +189,32 @@ def test_input_only_sees_nothing_from_memory():
     phiC, _ = c.features(mem_with(1), key, value, 16)
     phiD, _ = InterferenceController().features(mem_with(1), key, value, 16)
     assert torch.equal(phiC[..., [0, 1, 3, 4, 5]], phiD[..., [0, 1, 3, 4, 5]]) and torch.all(phiC[..., 2] == 0)
+
+
+@cuda
+def test_attention_reference_forward_backward_and_causal():
+    """The full-attention reference: attention mixer, no slot memory (writer 'none'); logits at
+    position t depend only on tokens <= t; its state is the KV cache, memory bytes are 0."""
+    m = RecallModel(ModelConfig(vocab_size=512, d_model=64, n_layers=2, n_heads=4, slots=4, mem_dim=32,
+                                writer="none", backbone="attention")).cuda()
+    x = torch.randint(1, 512, (2, 32), device="cuda")
+    logits, info = m(x, return_gates=True)
+    assert logits.shape == (2, 32, 512) and info["gates"] is None and info["mem"] is None
+    x2 = x.clone()
+    x2[:, 10] = (x2[:, 10] + 1) % 511 + 1
+    l2, _ = m(x2)
+    assert torch.allclose(logits[:, :10], l2[:, :10], atol=1e-5)
+    assert not torch.allclose(logits[:, 10:], l2[:, 10:])
+    logits.float().sum().backward()
+    assert m.backbone.blocks[0].attn.qkv.weight.grad is not None
+    sb = m.state_bytes(seq_len=32)
+    assert sb["memory"] == 0 and sb["writer"] == 0 and sb["backbone"] == 2 * 32 * 2 * 64 * 4
+
+
+@cuda
+def test_none_writer_on_gla_backbone_skips_memory():
+    m = RecallModel(ModelConfig(vocab_size=512, d_model=64, n_layers=1, n_heads=2, slots=4, mem_dim=32, writer="none")).cuda()
+    x = torch.randint(1, 512, (2, 16), device="cuda")
+    logits, info = m(x)
+    assert logits.shape == (2, 16, 512) and info["mem"] is None
+    assert m.state_bytes(seq_len=16)["memory"] == 0

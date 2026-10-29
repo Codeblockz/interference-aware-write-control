@@ -140,8 +140,8 @@ def main():
     mcfg = ModelConfig(**{**cfg["model"], "vocab_size": data_cfg.vocab_size, "pair_block": data_cfg.context_tokens()})
     cfg["model"]["pair_block"] = data_cfg.context_tokens()
     model = RecallModel(mcfg)
-    log(f"model: {mcfg}\nparams: {model.n_params()}\nstate_bytes: {model.state_bytes()}")
-    meta.update(params=model.n_params(), state_bytes=model.state_bytes())
+    log(f"model: {mcfg}\nparams: {model.n_params()}\nstate_bytes: {model.state_bytes(seq_len=data_cfg.seq_len)}")
+    meta.update(params=model.n_params(), state_bytes=model.state_bytes(seq_len=data_cfg.seq_len))
 
     tcfg = TrainConfig(**cfg["train"])
 

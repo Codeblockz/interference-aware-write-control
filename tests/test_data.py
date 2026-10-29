@@ -121,3 +121,25 @@ def test_key_skew_concentrates_queried_keys_and_keeps_distractors_cold():
     # torch RNG (pre-existing; see LOG 2026-10-27): compare the context block and the labels.
     assert np.array_equal(flat.inputs.numpy()[:, :40], same.inputs.numpy()[:, :40])
     assert np.array_equal(flat.labels.numpy(), same.labels.numpy())
+
+
+def test_min_delay_rounds_down_to_even_and_carries_to_longer_eval_lengths():
+    """The generator applies min_delay as 2*floor(delay/2): delay 65 gives the same layout as 64,
+    and every answer sits at least that many tokens after the context block. An eval config
+    built the way run.py builds it (same data block, longer seq_len) keeps min_delay."""
+    base = dict(vocab_size=1024, seq_len=512, num_kv_pairs=64, num_updates=16, num_distractors=16)
+    torch.manual_seed(0); a = generate_mqar(MQARConfig(**base, min_delay=64), 50, seed=3)
+    torch.manual_seed(0); b = generate_mqar(MQARConfig(**base, min_delay=65), 50, seed=3)
+    assert torch.equal(a.labels, b.labels) and torch.equal(a.inputs[:, :192], b.inputs[:, :192])
+    ctx = a.config.context_tokens()
+    first_answer = (a.labels != IGNORE).int().argmax(dim=1)
+    assert bool((first_answer >= ctx + 64).all())
+    eval_cfg = MQARConfig(**{**{**base, "min_delay": 64}, "seq_len": 1024})
+    assert eval_cfg.min_delay == 64
+
+
+def test_min_delay_192_puts_all_queries_in_the_last_128_tokens():
+    cfg = MQARConfig(vocab_size=1024, seq_len=512, num_kv_pairs=64, num_updates=16, num_distractors=16, min_delay=192)
+    b = generate_mqar(cfg, 20, seed=0)
+    pos = (b.labels != IGNORE).nonzero()[:, 1]
+    assert int(pos.min()) >= 512 - 128 and int((b.labels != IGNORE).sum(1).min()) == 64

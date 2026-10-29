@@ -28,6 +28,7 @@ class ModelConfig:
     mem_dim: int = 128
     writer: str = "controller"
     controller_hidden: int = 64
+    backbone: str = "gla"  # "gla" (the model under study) or "attention" (full-attention reference, use with writer "none")
     assoc_shift: int = 1  # key projected from h_{t-shift}: an association pairs each value with the preceding token
     fast: bool = False  # torch.compile the per-timestep memory step (same numerics; see memory_step)
     write_bias_init: float = 0.0  # controller's scalar write-gate bias at init (0 -> sigmoid 0.5; 2.2 -> 0.9)
@@ -39,7 +40,7 @@ class RecallModel(nn.Module):
     def __init__(self, cfg: ModelConfig):
         super().__init__()
         self.cfg = cfg
-        self.backbone = GLABackbone(cfg.vocab_size, cfg.d_model, cfg.n_layers, cfg.n_heads)
+        self.backbone = GLABackbone(cfg.vocab_size, cfg.d_model, cfg.n_layers, cfg.n_heads, mixer=cfg.backbone)
         self.to_q = nn.Linear(cfg.d_model, cfg.mem_dim)
         self.to_k = nn.Linear(cfg.d_model, cfg.mem_dim)
         self.to_v = nn.Linear(cfg.d_model, cfg.mem_dim)
@@ -87,6 +88,9 @@ class RecallModel(nn.Module):
         h_key = h if self.cfg.assoc_shift == 0 else torch.cat(
             [h.new_zeros(B, self.cfg.assoc_shift, h.shape[-1]), h[:, : -self.cfg.assoc_shift]], dim=1
         )
+        if self.cfg.writer == "none":  # reference without a slot memory: head sees [h; 0]
+            r = h.new_zeros(B, T, self.cfg.mem_dim)
+            return self.head(torch.cat([h, r], dim=-1)), {"gates": None, "mem": None}
         q, k, v = self.to_q(h).float(), self.to_k(h_key).float(), self.to_v(h).float()
         ctx = self.to_ctx(h).float() if self.to_ctx is not None else None
         mem = SlotMemory(B, self.cfg.slots, self.cfg.mem_dim, tokens.device)
@@ -115,9 +119,9 @@ class RecallModel(nn.Module):
         info = {"gates": torch.stack(gates, 1) if return_gates else None, "mem": mem}
         return logits, info
 
-    def state_bytes(self) -> dict:
-        backbone = self.backbone.state_bytes()
-        memory = SlotMemory.state_bytes(self.cfg.slots, self.cfg.mem_dim)
+    def state_bytes(self, seq_len: int | None = None) -> dict:
+        backbone = self.backbone.state_bytes(seq_len=seq_len)
+        memory = 0 if self.cfg.writer == "none" else SlotMemory.state_bytes(self.cfg.slots, self.cfg.mem_dim)
         writer = 4 * self.writer.n_stat_floats
         return {"backbone": backbone, "memory": memory, "writer": writer, "total": backbone + memory + writer}
 
