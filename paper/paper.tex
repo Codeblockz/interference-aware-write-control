@@ -47,11 +47,11 @@ interference features, two ablations of it, and four rule-based writers, all
 sharing one backbone, budget, and data, and test them on multi-query
 associative recall with key updates and distractors across 64 and 128
 associations and 32, 64, and 128 slots, three seeds per cell, paired on
-identical test sequences. Neither hypothesis holds. Against the proposal's own
-baselines the controller wins by 20 to 63 points above 32 slots, but a
-parameter-free rule that admits every key-value pair and nothing else beats
-every learned writer in every cell, by 6.6 points at 64 associations and 64
-slots. An ablation whose gate sees nothing derived from the stored memory
+identical test sequences. Neither hypothesis holds. A parameter-free rule that admits every
+key-value pair and nothing else beats every learned writer in every cell, by
+6.6 points at 64 associations and 64 slots; the controller does beat the
+proposal's own three baselines, by 20 to 63 points above 32 slots, but H1 is
+defined against the strongest baseline and that is the rule. An ablation whose gate sees nothing derived from the stored memory
 matches the controller's best ablation and beats the controller at both
 decisive budgets, so the interference signal carries nothing a learned gate
 can use here. Three findings explain why: the 32-slot cell is capacity-bound
@@ -619,9 +619,11 @@ seed negative, with the controller bimodal across
 seeds as before. Against the proposal's own baselines (recency, residual cache,
 position activation), which are at or near chance in every cell above $S = 32$
 except naive recency at 64 associations and 128 slots (29\%),
-the controller wins by 20 to 63~pp over the best of them; the failure is against the oracle-structure
-reference added in Section~\ref{sec:protocol}, which no writer without the
-generator's layout could implement exactly.
+the controller wins by 20 to 63~pp over the best of them. That margin is a
+finding in its own right, but it is not H1: H1 names the strongest
+validation-selected baseline, and that baseline is the pair-only reference
+added in Section~\ref{sec:protocol}, which no writer without the generator's
+layout could implement exactly.
 
 \textit{H2 test.} H2 is refuted. The decisive comparison is the input-only
 ablation, whose gate sees nothing derived from the stored keys or values,
@@ -868,8 +870,10 @@ input-only ablation at 66.0\% at 64 slots; the novelty ablation at 96.0\% at
 128). Against the proposal's own baselines the picture reverses: the
 residual cache and position activation are at or near chance above 32 slots,
 naive recency reaches 29\% only at 128 slots, and the controller beats the
-best of the three by 20 to 63~pp in every such cell. The controller therefore clears H1's 5-pp bar against the baselines the
-proposal named and fails it against the reference the proposal lacked.
+best of the three by 20 to 63~pp in every such cell. H1 nevertheless fails as defined, because it is stated against the
+strongest validation-selected baseline and that baseline is the reference
+the proposal lacked; the margin over the proposal's own baselines is reported
+as a separate result.
 
 \textit{The interference signal carries nothing usable.} The decisive
 comparison is the input-only ablation, whose gate sees the content projection
@@ -1081,9 +1085,10 @@ fixed before the sweep, with 108 sweep runs on three seeds per cell and 60
 follow-up runs, the answer on multi-query associative recall is no. A learned
 controller with per-slot interference features loses to a parameter-free rule
 that admits every key-value pair and nothing else, in every cell, by 6.6
-points at the decisive budget and by more as load grows (H1 not supported
-against that reference, though supported against the proposal's own
-baselines by 20 to 63 points). An ablation whose gate sees nothing from the
+points at the decisive budget and by 16 to 33 points elsewhere (H1 not
+supported). The controller does beat the three baselines the proposal named,
+by 20 to 63 points above 32 slots, but H1 is defined against the strongest
+validation-selected baseline, and that is the rule. An ablation whose gate sees nothing from the
 memory beats the controller at both decisive budgets and matches its best
 ablation, so the interference signal adds no usable information (H2
 refuted). The mechanism is measured, not inferred: learned gates under-admit
