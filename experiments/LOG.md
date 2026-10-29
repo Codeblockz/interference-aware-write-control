@@ -139,7 +139,17 @@ forms late and needs a higher rate; the GLA model gets previous-token informatio
 recurrence for free. Per the rule, the 1e-3 probe is launched (3 seeds); a 3e-3 probe is
 added beside it (disclosed deviation: two probes, not one), both at 8,000 steps, beside the
 delay queue. The paper reports the rate shown and that 3e-4 did not learn.
-Result (probes):
+Result (probes, 6 runs, 04:08-04:44, beside two delay runs): lr 1e-3: 1.0, 10.7, 1.0 % (the
+10.7 seed was at 1.1 % at step 6000 and rising at 8000); lr 3e-3: 0.2, 0.2, 0.2 % (worse than
+chance-level unigram guessing, i.e. unstable). Failed again at 8,000 steps. Reading: at this
+scale (vocabulary 8192, 64 pairs, length 512) the two-layer attention model's induction
+circuit forms late; Zoology trains 64 epochs of 100k sequences (6.4M) against our 512k.
+Third attempt (disclosed deviation from "one probe"): lr 1e-3 for 24,000 steps, 3 seeds,
+~12 min each, launched 04:50. Rule for the paper: if this reaches >= 95 % on all seeds, the
+row is reported with its schedule stated (three times the sweep's); if not, the row is
+omitted and the paper says a two-layer attention model did not learn the task under the
+budgets tried, with the numbers.
+Result (24k):
 Decision:
 
 ## 2026-10-28 A1 analysis: in-place update handling from gate logs (pre-registered 20:40)

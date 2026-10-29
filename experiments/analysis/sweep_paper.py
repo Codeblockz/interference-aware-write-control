@@ -61,8 +61,22 @@ def paired_recs(ra: dict, rb: dict, L: str):
     return 100 * pooled.mean(), 100 * lo, 100 * hi, [100 * float(d.mean()) for d in per]
 
 
-def tex_rows(runs, h2=None) -> str:
+def ref_row(ref_root) -> str | None:
+    """Full-attention reference row (runs/ref/attention_lr1e-3_24k_N64_s*): no slot memory."""
+    recs = [json.loads(f.read_text()) for f in sorted(Path(ref_root).glob("attention_lr1e-3_24k_N64_s*/results.json"))]
+    recs = [r for r in recs if r.get("status") == "done"]
+    if not recs:
+        return None
+    v = [100 * r["eval"]["L512"]["recall"] for r in recs]
+    return (r"Full attention, no slot memory (reference; 24k steps, lr $10^{-3}$) & \multicolumn{3}{c}{"
+            + f"{np.mean(v):.1f} {{\\scriptsize$\\pm${np.std(v, ddof=1):.1f}}}" + r"} & \multicolumn{3}{c}{--} \\")
+
+
+def tex_rows(runs, h2=None, ref=None) -> str:
     out = []
+    if ref:
+        out.append(ref)
+        out.append(r"\midrule")
     for w, label in ROWS:
         cells = []
         for n, s in CELLS:
@@ -181,10 +195,11 @@ def main():
     ap.add_argument("--fig-n", type=int, default=64, help="load N shown in the figure")
     ap.add_argument("--tex", default=None)
     ap.add_argument("--h2", nargs="*", default=None, help="roots with <writer>_lr<lr>_S<S>_N<N>_s<seed> runs (runs/sweep_h2, runs/step4)")
+    ap.add_argument("--ref", default=None, help="root with the full-attention reference runs (runs/ref)")
     a = ap.parse_args()
     runs = load(Path(a.root))
     h2 = load_h2(a.h2) if a.h2 else None
-    rows = tex_rows(runs, h2)
+    rows = tex_rows(runs, h2, ref_row(a.ref) if a.ref else None)
     if a.tex:
         Path(a.tex).write_text(rows + "\n")
     print(rows)
